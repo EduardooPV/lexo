@@ -62,30 +62,7 @@ A tradução acontece **no backend em Rust**, nunca no webview — isso evita CO
 
 ## Preview
 
-<table>
-  <tr>
-    <th align="center">Tradução EN → PT</th>
-    <th align="center">Tradução PT → EN (detecção automática)</th>
-  </tr>
-  <tr>
-    <td width="50%"><img src="./docs/screenshots/translate-en-pt.png" alt="Tradução de inglês para português" width="100%" /></td>
-    <td width="50%"><img src="./docs/screenshots/translate-pt-en.png" alt="Tradução de português para inglês com direção automática" width="100%" /></td>
-  </tr>
-  <tr>
-    <th align="center">Configurações</th>
-    <th align="center">Aparência</th>
-  </tr>
-  <tr>
-    <td width="50%"><img src="./docs/screenshots/settings.png" alt="Tela de configurações: chave DeepL e atalhos" width="100%" /></td>
-    <td width="50%"><img src="./docs/screenshots/appearance.png" alt="Tela de aparência: opacidade, cores, fonte e tema" width="100%" /></td>
-  </tr>
-  <tr>
-    <th align="center" colspan="2">Página inicial</th>
-  </tr>
-  <tr>
-    <td align="center" colspan="2"><img src="./docs/screenshots/home.png" alt="Página inicial do tradutor" width="60%" /></td>
-  </tr>
-</table>
+<img width="521" height="369" alt="image" src="https://github.com/user-attachments/assets/cd28afa1-b026-4eba-b1d6-d71c33e56897" width="100%"/>
 
 ---
 
