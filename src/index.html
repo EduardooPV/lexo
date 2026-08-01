@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lexo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Custom drag/title bar -->
+  <div class="titlebar" data-tauri-drag-region>
+    <div class="titlebar-title" data-tauri-drag-region>Lexo</div>
+    <div class="titlebar-actions">
+      <button class="tb-btn" id="btnHome" title="Home">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/></svg>
+      </button>
+      <button class="tb-btn" id="btnAppearance" title="Appearance">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>
+      </button>
+      <button class="tb-btn" id="btnSettings" title="Settings">⚙</button>
+      <button class="tb-btn" id="btnClose" title="Close (Esc)">✕</button>
+    </div>
+  </div>
+
+  <!-- MAIN TRANSLATOR -->
+  <main id="mainView">
+    <div class="input-card">
+      <div class="input-head">
+        <button class="lang-badge" id="dirBadge" title="Click or press the swap shortcut to change direction">Auto ⇄</button>
+      </div>
+      <textarea id="src" placeholder="Type or paste text in Portuguese or English..." rows="3" autofocus></textarea>
+      <div class="io-tools">
+        <button class="icon-btn" id="btnMic" title="Voice input (speak)">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M6 11a6 6 0 0 0 12 0M12 17v3M9 20h6"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSpeakSrc" title="Listen to the text">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
+        </button>
+        <button class="translate-btn" id="btnTranslate">Translate</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="output-card" id="outputCard" hidden>
+      <div class="output-head">
+        <span class="lang-badge out" id="outDir">Translation</span>
+        <div class="out-actions">
+          <button class="icon-btn" id="btnSpeakOut" title="Listen to the translation">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
+          </button>
+          <button class="icon-btn" id="btnCopy" title="Copy">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="translation" id="out"></div>
+    </div>
+  </main>
+
+  <!-- SETTINGS (general) -->
+  <section id="settingsView" hidden>
+    <h2 class="settings-title">Settings</h2>
+
+    <label class="field">
+      <span class="field-label">DeepL API key (required)</span>
+      <input type="password" id="deeplKey" placeholder="xxxxxxxx-xxxx-...-xxxx:fx" spellcheck="false" autocomplete="off">
+      <span class="field-hint">Get a free key (500k chars/month) at deepl.com/pro-api and paste it here — the app translates through DeepL.</span>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Open shortcut</span>
+      <input type="text" id="hotkey" placeholder="Alt+R" spellcheck="false">
+      <span class="field-hint">Global shortcut that shows the popup. e.g. Alt+R · CommandOrControl+Shift+T. Applied as soon as you save.</span>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Swap-direction shortcut</span>
+      <input type="text" id="swapHotkey" placeholder="Alt+E" spellcheck="false">
+      <span class="field-hint">Works while the popup is focused. e.g. Alt+E · Ctrl+Shift+S.</span>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Translate-selection shortcut</span>
+      <input type="text" id="selectionHotkey" placeholder="Alt+T" spellcheck="false">
+      <span class="field-hint">Select text in any app, press this, and the translation pops up at the cursor. Applied as soon as you save.</span>
+    </label>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="autostart">
+      <span class="field-label">Start with the system (run in background)</span>
+    </label>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="autoTranslateClipboard">
+      <span class="field-label">Auto-translate clipboard text when opening</span>
+    </label>
+
+    <button class="ghost-btn full danger" id="btnResetAll" type="button" title="Reset appearance, shortcuts and settings to defaults (your DeepL key is kept)">Reset to defaults</button>
+
+    <div class="settings-actions">
+      <button class="translate-btn" id="btnSaveSettings">Save</button>
+      <button class="ghost-btn" id="btnBackSettings">Back</button>
+    </div>
+    <div class="status" id="settingsStatus"></div>
+  </section>
+
+  <!-- APPEARANCE -->
+  <section id="appearanceView" hidden>
+    <h2 class="settings-title">Appearance</h2>
+
+    <label class="field">
+      <span class="field-label">Opacity</span>
+      <div class="range-row">
+        <input type="range" id="opacity" min="0.4" max="1" step="0.01">
+        <output id="opacityVal">100%</output>
+      </div>
+    </label>
+
+    <div class="field">
+      <span class="field-label">Colors</span>
+      <div class="color-row">
+        <label class="color-item"><input type="color" id="colBg"><span>Background</span></label>
+        <label class="color-item"><input type="color" id="colAccent"><span>Accent</span></label>
+        <label class="color-item"><input type="color" id="colText"><span>Text</span></label>
+      </div>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Font</span>
+      <select id="font">
+        <option value="'Segoe UI', system-ui, sans-serif">Segoe UI (default)</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        <option value="'Calibri', sans-serif">Calibri</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+        <option value="'Consolas', monospace">Consolas</option>
+        <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Theme</span>
+      <select id="themeSelect"></select>
+    </label>
+
+    <div class="settings-actions appearance-actions">
+      <button class="translate-btn" id="btnSaveAppearance">Save</button>
+      <button class="ghost-btn" id="btnBackAppearance">Back</button>
+    </div>
+    <div class="status" id="appearanceStatus"></div>
+  </section>
+
+</div>
+<script src="main.js"></script>
+</body>
+</html>

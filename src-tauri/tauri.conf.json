@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Lexo",
+  "version": "0.1.4",
+  "identifier": "com.luizveltroni.tradutor",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "popup",
+        "title": "Lexo",
+        "width": 520,
+        "height": 250,
+        "minWidth": 360,
+        "minHeight": 120,
+        "visible": false,
+        "resizable": true,
+        "center": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "skipTaskbar": false,
+        "focus": true
+      },
+      {
+        "label": "mini",
+        "title": "Translation",
+        "url": "mini.html",
+        "width": 360,
+        "height": 180,
+        "visible": false,
+        "resizable": false,
+        "center": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "skipTaskbar": true,
+        "focus": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

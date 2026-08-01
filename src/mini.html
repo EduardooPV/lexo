@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Translation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="mini.css">
+</head>
+<body>
+<div id="bubble">
+  <button id="close" title="Close (Esc)">✕</button>
+
+  <div class="block">
+    <div class="lang" id="srcLang">—</div>
+    <div class="line">
+      <button class="spk" id="spkSrc" title="Listen">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
+      </button>
+      <div class="txt" id="srcText"></div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="block">
+    <div class="lang" id="outLang">—</div>
+    <div class="line">
+      <button class="spk" id="spkOut" title="Listen">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
+      </button>
+      <div class="txt" id="outText"></div>
+    </div>
+  </div>
+
+  <div class="status" id="miniStatus"></div>
+</div>
+<script src="mini.js"></script>
+</body>
+</html>
