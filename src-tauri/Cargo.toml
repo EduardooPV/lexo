@@ -1,6 +1,6 @@
 [package]
 name = "tradutor"
-version = "0.1.5"
+version = "0.1.6"
 description = "Tradutor PT ⇄ EN com atalho global"
 authors = ["EduardooPV"]
 edition = "2021"
