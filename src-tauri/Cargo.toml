@@ -1,6 +1,6 @@
 [package]
 name = "tradutor"
-version = "1.0.1"
+version = "1.0.2"
 description = "Global-hotkey PT ⇄ EN desktop translator"
 authors = ["EduardooPV"]
 edition = "2021"
