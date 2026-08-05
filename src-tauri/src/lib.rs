@@ -219,6 +219,7 @@ struct CacheEntry {
 struct AppState {
     history: Mutex<Vec<HistoryEntry>>,
     cache: Mutex<Vec<CacheEntry>>,
+    pending_update: Mutex<Option<tauri_plugin_updater::Update>>,
 }
 
 fn load_state(app: &AppHandle) {
@@ -1145,7 +1146,9 @@ struct UpdateInfo {
     notes: Option<String>,
 }
 
-async fn pending_update(app: &AppHandle) -> Result<Option<tauri_plugin_updater::Update>, String> {
+async fn check_remote_update(
+    app: &AppHandle,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
     use tauri_plugin_updater::UpdaterExt;
     app.updater()
         .map_err(|e| format!("updater_error: {e}"))?
@@ -1154,17 +1157,35 @@ async fn pending_update(app: &AppHandle) -> Result<Option<tauri_plugin_updater::
         .map_err(|e| format!("updater_error: {e}"))
 }
 
-#[tauri::command]
-async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
-    Ok(pending_update(&app).await?.map(|update| UpdateInfo {
+async fn refresh_pending_update(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
+    let update = check_remote_update(app).await?;
+    let info = update.as_ref().map(|update| UpdateInfo {
         version: update.version.clone(),
         notes: update.body.clone(),
-    }))
+    });
+    let state = app.state::<AppState>();
+    if let Ok(mut pending) = state.pending_update.lock() {
+        *pending = update;
+    }
+    Ok(info)
+}
+
+#[tauri::command]
+async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
+    refresh_pending_update(&app).await
 }
 
 #[tauri::command]
 async fn install_update(app: AppHandle) -> Result<(), String> {
-    let Some(update) = pending_update(&app).await? else {
+    let taken = {
+        let state = app.state::<AppState>();
+        state
+            .pending_update
+            .lock()
+            .ok()
+            .and_then(|mut pending| pending.take())
+    };
+    let Some(update) = taken else {
         return Err("updater_none: already on the latest version.".to_string());
     };
     update
@@ -1177,15 +1198,8 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
 fn check_for_update_on_startup(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Ok(Some(update)) = pending_update(&app).await {
-            let _ = app.emit_to(
-                "popup",
-                "update-available",
-                UpdateInfo {
-                    version: update.version.clone(),
-                    notes: update.body.clone(),
-                },
-            );
+        if let Ok(Some(info)) = refresh_pending_update(&app).await {
+            let _ = app.emit_to("popup", "update-available", info);
         }
     });
 }

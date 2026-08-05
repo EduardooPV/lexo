@@ -7,13 +7,14 @@ describe('update banner', () => {
     expect(el('updateBanner').hidden).toBe(true);
   });
 
-  it('announces the version once the backend reports one', async () => {
+  it('shows a plain, always-non-empty label with the version as a tooltip', async () => {
     const mock = await mountPopup();
     await mock.emit('update-available', { version: '1.2.0', notes: 'Bug fixes' });
     await flush();
 
     expect(el('updateBanner').hidden).toBe(false);
-    expect(el('updateText').textContent).toBe('Version 1.2.0 is available');
+    expect(el('updateText').textContent).toBe('Update available');
+    expect(el('updateBanner').title).toBe('Version 1.2.0');
   });
 
   it('ignores a malformed payload rather than showing an empty banner', async () => {
@@ -79,5 +80,23 @@ describe('installing', () => {
     expect(el('btnInstallUpdate').textContent).toBe('Update');
     expect(el('status').textContent).toBe('Could not reach the update server. Try again later.');
     expect(el('status').classList.contains('error')).toBe(true);
+  });
+
+  it('closes the banner instead of nagging when the backend says there is nothing to install', async () => {
+    const mock = await mountPopup({
+      install_update: () => {
+        throw 'updater_none: already on the latest version.';
+      }
+    });
+    await mock.emit('update-available', { version: '1.2.0' });
+    await flush();
+
+    el('btnInstallUpdate').click();
+    await flush();
+
+    expect(el('updateBanner').hidden).toBe(true);
+    expect(el('btnInstallUpdate').disabled).toBe(false);
+    expect(el('btnInstallUpdate').textContent).toBe('Update');
+    expect(el('status').classList.contains('error')).toBe(false);
   });
 });

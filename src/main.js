@@ -696,15 +696,18 @@ document.addEventListener('keydown', (event) => {
 
 function showUpdateBanner(update) {
   if (!update || !update.version) return;
-  el('updateText').textContent = `Version ${update.version} is available`;
+  el('updateText').textContent = 'Update available';
+  el('updateBanner').title = `Version ${update.version}`;
   el('updateBanner').hidden = false;
   fitWindow();
 }
 
-el('btnDismissUpdate').addEventListener('click', () => {
+function hideUpdateBanner() {
   el('updateBanner').hidden = true;
   fitWindow();
-});
+}
+
+el('btnDismissUpdate').addEventListener('click', hideUpdateBanner);
 
 el('btnInstallUpdate').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -715,6 +718,10 @@ el('btnInstallUpdate').addEventListener('click', async (event) => {
   } catch (error) {
     button.disabled = false;
     button.textContent = 'Update';
+    if (String(error).includes('updater_none')) {
+      hideUpdateBanner();
+      return;
+    }
     fail(status, api.describeError(error));
     fitWindow();
   }
