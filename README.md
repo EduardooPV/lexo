@@ -71,6 +71,16 @@ Every shortcut is remappable in Settings (you press the combination, not type it
 - **Text-to-speech** and **voice input** in both languages
 - **Customizable theme** — colors, opacity, and font
 
+## Platform notes
+
+None of the installers are code-signed yet, so the OS will warn you on first run:
+
+- **Windows**: SmartScreen shows "Windows protected your PC" — click **More info** → **Run anyway**.
+- **macOS**: Gatekeeper blocks the unsigned app — right-click it → **Open** the first time (or run `xattr -cr` on it).
+- **Linux**: the `.AppImage` needs `chmod +x` before it will run.
+
+This is normal for a small open-source project without a paid code-signing certificate — nothing is wrong with the download.
+
 ## Development
 
 ```bash

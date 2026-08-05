@@ -35,11 +35,19 @@ as-is.
 - Every clickable UI element should use the `.btn` class system in `src/base.css`
   rather than a new bespoke button style.
 
+## Branch naming
+
+Name branches `<type>/<short-description>`, using the same types as
+[Conventional Commits](https://www.conventionalcommits.org/): `feat/`, `fix/`, `chore/`,
+`docs/`, `refactor/`, `ci/`. For example: `fix/selection-clipboard-race`,
+`feat/glossary-support`. Commit messages should follow the same convention.
+
 ## Pull requests
 
 - Describe what changed and why, not just what.
 - Reference the issue it addresses, if any.
 - Keep the scope focused — one feature or fix per pull request.
+- Use the pull request template — fill in the summary and checklist rather than deleting them.
 
 ## Reporting bugs
 
