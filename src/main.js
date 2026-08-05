@@ -30,14 +30,11 @@ const DEFAULT_SETTINGS = {
 };
 
 let settings = { ...DEFAULT_SETTINGS };
-// null = let DeepL decide; otherwise the language we force it to translate into.
 let forcedTarget = null;
 let lastResult = null;
 let historyEntries = [];
 
 hydrate();
-
-/* --------------------------------------------------------------- plumbing */
 
 function fitWindow() {
   requestAnimationFrame(() => {
@@ -81,17 +78,12 @@ function showView(name) {
   fitWindow();
 }
 
-/* ------------------------------------------------------------- direction  */
-
-// Only used to pick a voice for text-to-speech and speech recognition — the
-// translation direction itself is decided by DeepL, in the backend.
 function guessSpokenLanguage(text) {
   return /[ãõáàâêôçéíóú]/i.test(text || '') ? 'pt' : 'en';
 }
 
 const LANGUAGE_NAMES = { PT: 'Portuguese', EN: 'English' };
 
-// Accent badge = DeepL decides. Pink badge = the direction is pinned by hand.
 function updateBadge() {
   if (forcedTarget) {
     dirLabel.textContent = forcedTarget === 'EN' ? 'PT → EN' : 'EN → PT';
@@ -106,18 +98,12 @@ function updateBadge() {
   dirBadge.classList.toggle('is-forced', Boolean(forcedTarget));
 }
 
-// Always flips whatever direction is currently shown (auto-detected or
-// pinned), so one click is one swap. A 3-way cycle through "auto" used to sit
-// here, but when the auto-detected target already matched the first forced
-// step it looked like the click did nothing — the badge only changed color.
 function cycleDirection() {
   const shown = forcedTarget || (lastResult && lastResult.target) || 'EN';
   forcedTarget = shown === 'EN' ? 'PT' : 'EN';
   updateBadge();
   if (!outputCard.hidden && src.value.trim()) translate();
 }
-
-/* ------------------------------------------------------------- translate  */
 
 async function translate() {
   const text = src.value.trim();
@@ -157,7 +143,6 @@ src.addEventListener('keydown', (event) => {
   }
 });
 
-// Editing invalidates the direction shown for the previous result.
 src.addEventListener('input', () => {
   if (lastResult && src.value.trim() !== lastResult.sourceText) {
     lastResult = null;
@@ -181,22 +166,16 @@ el('btnCopy').addEventListener('click', async (event) => {
   }, 900);
 });
 
-/* -------------------------------------------------------------- screen ocr */
-
 el('btnOcr').addEventListener('click', async () => {
   await api.hidePopup().catch(() => {});
   api.startRegionCapture().catch(() => {});
 });
-
-/* ------------------------------------------------------------ text to speech */
 
 let voices = [];
 function loadVoices() {
   try { voices = window.speechSynthesis.getVoices() || []; } catch (_) { voices = []; }
 }
 
-// Windows "Online (Natural)" and macOS "Enhanced" voices sound far better than
-// the legacy SAPI5 ones, which are otherwise picked first.
 function scoreVoice(voice) {
   const name = (voice.name || '').toLowerCase();
   let score = 0;
@@ -234,8 +213,6 @@ if ('speechSynthesis' in window) {
   el('btnSpeakSrc').hidden = true;
   el('btnSpeakOut').hidden = true;
 }
-
-/* ------------------------------------------------------------ voice input */
 
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
@@ -288,8 +265,6 @@ if (SpeechRec) {
 } else {
   el('btnMic').hidden = true;
 }
-
-/* ---------------------------------------------------------------- history */
 
 function renderHistory() {
   const query = el('historySearch').value.trim().toLowerCase();
@@ -396,7 +371,6 @@ el('historyList').addEventListener('click', async (event) => {
     return;
   }
 
-  // Clicking the row itself reopens that translation.
   src.value = entry.source;
   out.textContent = entry.translated;
   lastResult = {
@@ -415,8 +389,6 @@ el('btnClearHistory').addEventListener('click', async () => {
   historyEntries = await api.clearHistory();
   renderHistory();
 });
-
-/* ------------------------------------------------------------------ usage */
 
 async function refreshUsage() {
   const box = el('usage');
@@ -452,8 +424,6 @@ el('btnRevealKey').addEventListener('click', (event) => {
   field.type = hidden ? 'text' : 'password';
   setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
 });
-
-/* ----------------------------------------------------- shortcut recorder */
 
 const RECORDERS = ['hotkey', 'selectionHotkey', 'replaceHotkey', 'ocrHotkey', 'swapHotkey'];
 const NAMED_KEYS = {
@@ -498,7 +468,6 @@ function onRecordKey(event) {
   if (event.shiftKey) parts.push('Shift');
   if (event.metaKey) parts.push('Super');
 
-  // A bare letter would swallow that key system-wide.
   if (!parts.length && !/^F\d{1,2}$/.test(key)) {
     recording.textContent = 'Add Ctrl, Alt or Shift…';
     return;
@@ -530,8 +499,6 @@ function setRecorder(id, value) {
   button.dataset.value = value;
   button.textContent = value;
 }
-
-/* ------------------------------------------------------------- appearance */
 
 function appearanceFromControls() {
   return {
@@ -604,8 +571,6 @@ function previewAppearance() {
   });
 })();
 
-/* -------------------------------------------------------------- settings  */
-
 function matchesHotkey(event, combo) {
   if (!combo) return false;
   const parts = combo.split('+').map((part) => part.trim().toLowerCase()).filter(Boolean);
@@ -677,7 +642,6 @@ async function saveAll(statusNode) {
     try {
       await api.updateShortcuts();
     } catch (error) {
-      // Stay on the panel so the offending combo can be fixed.
       fail(statusNode, 'Saved, but a shortcut could not be registered: ' + api.describeError(error));
       return;
     }
@@ -702,11 +666,8 @@ el('btnResetAll').addEventListener('click', () => {
   el('autostart').checked = true;
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);
-  // The DeepL key is deliberately left alone.
   saveAll(el('settingsStatus'));
 });
-
-/* ------------------------------------------------------------- navigation */
 
 el('btnHistory').addEventListener('click', () => showView(VIEWS.history.hidden ? 'history' : 'main'));
 el('btnSettings').addEventListener('click', () => showView(VIEWS.settings.hidden ? 'settings' : 'main'));

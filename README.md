@@ -5,7 +5,7 @@
 <h1 align="center">Lexo</h1>
 
 <p align="center">
-  Tradutor de desktop PT ⇄ EN por atalho global. Vive na bandeja do sistema e traduz texto de qualquer aplicativo, na hora.
+  A global-hotkey PT ⇄ EN desktop translator. Lives in the system tray and translates text from any app, instantly.
 </p>
 
 <p align="center">
@@ -19,89 +19,91 @@
 
 <p align="center">
   <a href="#download">Download</a> ·
-  <a href="#como-usar">Como usar</a> ·
-  <a href="#atalhos">Atalhos</a> ·
-  <a href="#funcionalidades">Funcionalidades</a> ·
-  <a href="#notas-de-plataforma">Notas de plataforma</a> ·
-  <a href="#desenvolvimento">Desenvolvimento</a>
+  <a href="#usage">Usage</a> ·
+  <a href="#shortcuts">Shortcuts</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#platform-notes">Platform notes</a> ·
+  <a href="#development">Development</a>
 </p>
 
 ---
 
 ## Download
 
-📥 **[Baixar a última versão](https://github.com/EduardooPV/lexo/releases/latest)** — Windows (`.exe`/`.msi`), macOS (`.dmg`) e Linux (`.AppImage`/`.deb`/`.rpm`).
+📥 **[Download the latest release](https://github.com/EduardooPV/lexo/releases/latest)** — Windows (`.exe`/`.msi`), macOS (`.dmg`), and Linux (`.AppImage`/`.deb`/`.rpm`).
 
-Precisa apenas de uma chave grátis da **[DeepL API](https://www.deepl.com/pro-api)** (500.000 caracteres/mês, sem custo). A tradução roda no backend em Rust — sua chave nunca passa pelo navegador. Sem telemetria.
-
----
-
-## Como usar
-
-1. Baixe e instale (link acima)
-2. Abra com **Alt+R** → **Configurações** → cole a chave da DeepL → **Salvar**
-3. Digite ou cole um texto → **Enter** para traduzir
-4. Em qualquer app, selecione um texto e pressione **Alt+T**
-
-Todos os atalhos são remapeáveis em Configurações (você aperta a combinação, não digita) e valem assim que salva.
-
-## Atalhos
-
-| Tecla           | Ação                                              |
-|-----------------|----------------------------------------------------|
-| **Alt+R**       | Abrir/fechar o tradutor                             |
-| **Alt+T**       | Traduzir o texto selecionado (qualquer app)         |
-| **Alt+Shift+T** | Traduzir a seleção e **substituir** no lugar        |
-| **Alt+S**       | Selecionar uma região da tela e traduzir por OCR *(Windows)* |
-| **Alt+E**       | Alternar direção da tradução (PT→EN ⇄ EN→PT)        |
-| **Enter**       | Traduzir                                            |
-| **Esc**         | Fechar                                              |
+All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,000 characters/month, no cost). Translation runs in the Rust backend — your key never touches the browser. No telemetry.
 
 ---
 
-## Funcionalidades
+## Usage
 
-- **Tradução de seleção** num balão compacto ao lado do cursor — arrastável e sempre visível na tela
-- **Traduzir e substituir**: sobrescreve o texto selecionado com a tradução, no lugar
-- **OCR de região da tela** *(Windows)*: arraste uma caixa sobre print, vídeo ou PDF escaneado. 100% nativo — sem serviço externo, sem modelo embutido
-- **Histórico** com busca, favoritos e copiar, e **cache local** — texto repetido não consome cota da DeepL
-- **Medidor de cota** da DeepL nas configurações
-- **Direção decidida pela própria DeepL** (com repescagem automática se o alvo vier errado)
-- **Pausar atalhos** pela bandeja, para não conflitar com jogos e outros apps
-- **Text-to-speech** e **entrada por voz** nos dois idiomas
-- **Tema customizável** — cores, opacidade e fonte
+1. Download and install (link above)
+2. Open with **Alt+R** → **Settings** → paste your DeepL key → **Save**
+3. Type or paste text → **Enter** to translate
+4. In any app, select text and press **Alt+T**
 
----
+Every shortcut is remappable in Settings (you press the combination, not type it) and applies as soon as you save.
 
-## Notas de plataforma
+## Shortcuts
 
-O app é desenvolvido e testado no **Windows**, onde tudo funciona, incluindo o OCR (nativo, nunca chega a mac/Linux). Em macOS e Linux, a tradução, o histórico, atalhos e a tradução de seleção funcionam, com duas ressalvas:
-
-- **macOS** pede permissão de **Acessibilidade** na primeira vez que você usar Alt+T/Alt+Shift+T (necessária para simular Ctrl+C/Ctrl+V) — conceda em *Ajustes do Sistema › Privacidade e Segurança*.
-- **Linux**: atalhos globais e simulação de teclado dependem de X11; numa sessão **Wayland nativa** podem não responder (não testado em nenhuma distro).
-
-Os instaladores de macOS e Linux **não são assinados**: no macOS, clique com o botão direito no app → **Abrir** na primeira vez (ou `xattr -cr` nele); no Linux, dê `chmod +x` no `.AppImage`.
+| Key             | Action                                             |
+|-----------------|-----------------------------------------------------|
+| **Alt+R**       | Open/close the translator                            |
+| **Alt+T**       | Translate the selected text (any app)                |
+| **Alt+Shift+T** | Translate the selection and **replace** it in place  |
+| **Alt+S**       | Select a screen region and translate it via OCR *(Windows)* |
+| **Alt+E**       | Toggle translation direction (PT→EN ⇄ EN→PT)         |
+| **Enter**       | Translate                                            |
+| **Esc**         | Close                                                |
 
 ---
 
-## Desenvolvimento
+## Features
+
+- **Selection translation** in a compact bubble next to the cursor — draggable and always kept on screen
+- **Translate and replace**: overwrites the selected text with its translation, in place
+- **Screen-region OCR** *(Windows)*: drag a box over a screenshot, video, or scanned PDF. Fully native — no external service, no bundled model
+- **History** with search, favorites, and copy, plus **local caching** — repeated text costs zero DeepL characters
+- **Usage quota meter** in Settings
+- **Direction decided by DeepL itself** (with an automatic retry if the guessed target is wrong)
+- **Pause shortcuts** from the tray, to avoid conflicts with games and other apps
+- **Text-to-speech** and **voice input** in both languages
+- **Customizable theme** — colors, opacity, and font
+
+---
+
+## Platform notes
+
+Lexo is developed and tested on **Windows**, where everything works, including OCR (native, never reaches macOS/Linux). On macOS and Linux, translation, history, shortcuts, and selection translation all work, with two caveats:
+
+- **macOS** asks for **Accessibility** permission the first time you use Alt+T/Alt+Shift+T (needed to simulate Ctrl+C/Ctrl+V) — grant it under *System Settings › Privacy & Security*.
+- **Linux**: global shortcuts and simulated keystrokes rely on X11; under a native **Wayland** session they may not respond (untested on any distro).
+
+macOS and Linux installers are **unsigned**: on macOS, right-click the app → **Open** the first time (or run `xattr -cr` on it); on Linux, `chmod +x` the `.AppImage`.
+
+---
+
+## Development
 
 ```bash
 git clone https://github.com/EduardooPV/lexo.git
 cd lexo
-npm install         # instala apenas o @tauri-apps/cli; deps Rust vêm do Cargo
-npm run dev          # tauri dev — hot-reload do frontend, rebuild do Rust ao alterar
-npm run build        # tauri build — instalador nativo da sua plataforma
+npm install
+npm run dev
+npm run build
 ```
 
-Checagens do backend (dentro de `src-tauri/`): `cargo check`, `cargo clippy`, `cargo fmt`.
+`npm install` only installs `@tauri-apps/cli`; Rust dependencies come from Cargo. `npm run dev` runs `tauri dev` (hot-reloads the frontend, rebuilds Rust on change); `npm run build` produces your platform's native installer.
 
-**Pré-requisitos (Windows, plataforma de desenvolvimento):** Rust (toolchain MSVC), as [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) e Node 16+. Para macOS/Linux, siga os [pré-requisitos do Tauri](https://tauri.app/start/prerequisites/) da sua plataforma — veja os pacotes exatos usados em CI em [`.github/workflows/build.yml`](.github/workflows/build.yml).
+Backend checks (inside `src-tauri/`): `cargo check`, `cargo clippy`, `cargo fmt`.
 
-`.github/workflows/build.yml` builda Windows, macOS e Linux sob a mesma tag de release a cada push na `main`, e **incrementa a versão automaticamente** — só depois que as três plataformas compilarem com sucesso.
+**Prerequisites (Windows, the primary dev platform):** Rust (MSVC toolchain), the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), and Node 16+. For macOS/Linux, follow Tauri's own [prerequisites](https://tauri.app/start/prerequisites/) for your platform — see the exact packages used in CI in [`.github/workflows/build.yml`](.github/workflows/build.yml).
+
+`.github/workflows/build.yml` builds Windows, macOS, and Linux under the same release tag on every push to `main`, and **bumps the version automatically** — only after all three platforms build successfully.
 
 ---
 
 <p align="center">
-  Feito com Tauri 2 + Rust · <a href="https://github.com/EduardooPV/lexo/releases/latest">📥 Baixar última versão</a>
+  Built with Tauri 2 + Rust · <a href="https://github.com/EduardooPV/lexo/releases/latest">📥 Download the latest release</a>
 </p>

@@ -1,11 +1,11 @@
 node_modules/
 dist/
 
-# Rust / Tauri build output
 src-tauri/target/
 src-tauri/gen/
 
-# OS / editor
 .DS_Store
 Thumbs.db
 *.log
+
+CLAUDE.md

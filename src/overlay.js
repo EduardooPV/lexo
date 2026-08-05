@@ -1,6 +1,3 @@
-// Region picker for screen OCR: drag a box, hand the rectangle to the backend.
-// Coordinates stay in CSS pixels — Rust scales them by the window's DPI factor.
-
 import * as api from './api.js';
 
 const backdrop = document.getElementById('backdrop');
@@ -79,6 +76,5 @@ window.addEventListener('keydown', (event) => {
 
 window.addEventListener('contextmenu', (event) => event.preventDefault());
 
-// Each capture re-focuses the window, so this clears any leftover drag state.
 window.addEventListener('focus', reset);
 window.addEventListener('blur', reset);

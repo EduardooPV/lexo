@@ -1,7 +1,3 @@
-// Compact bubble shown next to the cursor for a selection, or under the
-// captured box for a screen region. It translates through the same backend
-// command as the main window, so the direction is decided in exactly one place.
-
 import * as api from './api.js';
 import { hydrate, setIcon } from './icons.js';
 import { applyAppearance } from './theme.js';
@@ -39,8 +35,6 @@ function reset() {
   setStatus('');
   lastResult = null;
 }
-
-/* ------------------------------------------------------------------ voice */
 
 let voices = [];
 function loadVoices() {
@@ -111,14 +105,11 @@ el('close').addEventListener('click', () => api.hideMini());
 document.addEventListener('keydown', (event) => {
   const key = (event.key || '').toLowerCase();
   if (key === 'escape') api.hideMini();
-  // Ctrl+C copies the translation without having to aim at the button.
   if (key === 'c' && event.ctrlKey && !String(window.getSelection() || '')) {
     el('copyOut').click();
   }
 });
 
-// Dragging the window hands the mouse to the OS, which can blur the webview —
-// without this the bubble would close the moment you tried to move it.
 let grabbedAt = 0;
 document.addEventListener(
   'mousedown',
@@ -130,14 +121,11 @@ document.addEventListener(
   true
 );
 
-// Dismiss when focus leaves, ignoring the focus settling right after it appears.
 window.addEventListener('blur', () => {
   if (Date.now() - shownAt < 500) return;
   if (Date.now() - grabbedAt < 1500) return;
   api.hideMini();
 });
-
-/* -------------------------------------------------------------- translate */
 
 async function run(text) {
   el('srcText').textContent = text;

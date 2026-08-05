@@ -1,5 +1,3 @@
-/* Selection / OCR bubble. Tokens and buttons come from base.css. */
-
 html, body{ margin: 0; background: transparent; }
 body{ font-family: var(--ui-font); color: var(--ink); overflow: hidden; }
 
@@ -14,8 +12,6 @@ body{ font-family: var(--ui-font); color: var(--ink); overflow: hidden; }
   cursor: move;
 }
 
-/* Both header rows put their buttons in the same flush-right group, so the
-   close button lines up with the copy button in the column below it. */
 .block-head{
   display: flex;
   align-items: center;

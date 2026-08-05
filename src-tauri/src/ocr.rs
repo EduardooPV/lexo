@@ -1,8 +1,3 @@
-//! Screen-region OCR using only what Windows already ships: GDI grabs the
-//! pixels, `Windows.Media.Ocr` reads them. No external service, no bundled
-//! model, nothing added to the installer.
-
-/// Whether this build can do OCR at all (the frontend hides the button if not).
 pub fn available() -> bool {
     cfg!(target_os = "windows")
 }
@@ -30,20 +25,14 @@ mod win {
     };
     use windows_sys::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
 
-    // Declared locally so the code does not depend on how a given windows-sys
-    // release names or types these constants.
     const SRCCOPY: u32 = 0x00CC_0020;
     const BI_RGB: u32 = 0;
     const DIB_RGB_COLORS: u32 = 0;
 
-    // Windows OCR rejects images smaller than 40px on a side, and reads small
-    // text much better when it is scaled up first.
     const MIN_SIDE: i32 = 8;
     const TARGET_SIDE: i32 = 120;
     const MAX_SCALE: i32 = 4;
 
-    /// A zeroed handle — works whether windows-sys types handles as pointers or
-    /// as integers, which has changed between releases.
     #[inline]
     unsafe fn nul<T>() -> T {
         std::mem::zeroed()
@@ -52,13 +41,10 @@ mod win {
     fn ensure_apartment() {
         static ONCE: OnceLock<()> = OnceLock::new();
         ONCE.get_or_init(|| unsafe {
-            // S_FALSE / RPC_E_CHANGED_MODE are both fine: we only need *an*
-            // apartment to exist so WinRT activation works on this thread.
             CoInitializeEx(std::ptr::null(), COINIT_MULTITHREADED as u32);
         });
     }
 
-    /// Copy a rectangle of the virtual screen into a top-down BGRA buffer.
     fn capture(x: i32, y: i32, width: i32, height: i32) -> Result<Vec<u8>, String> {
         unsafe {
             let screen = GetDC(nul());
@@ -72,7 +58,7 @@ mod win {
             let mut info: BITMAPINFO = std::mem::zeroed();
             info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
             info.bmiHeader.biWidth = width;
-            info.bmiHeader.biHeight = -height; // negative = top-down rows
+            info.bmiHeader.biHeight = -height;
             info.bmiHeader.biPlanes = 1;
             info.bmiHeader.biBitCount = 32;
             info.bmiHeader.biCompression = BI_RGB;
@@ -96,7 +82,6 @@ mod win {
                 return Err("capture_error: could not read that screen region.".to_string());
             }
 
-            // BitBlt leaves the alpha channel undefined; OCR needs it opaque.
             for pixel in pixels.chunks_exact_mut(4) {
                 pixel[3] = 255;
             }
@@ -158,8 +143,6 @@ mod win {
             .get()
             .map_err(fail("recognize"))?;
 
-        // Joining the recognised lines keeps paragraph breaks, which reads far
-        // better than the single flattened string `Text()` returns.
         let lines = result.Lines().map_err(fail("lines"))?;
         let count = lines.Size().map_err(fail("lines"))?;
         let mut text = String::new();

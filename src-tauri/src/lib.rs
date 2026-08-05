@@ -22,10 +22,7 @@ const DEFAULT_SWAP_HOTKEY: &str = "Alt+E";
 const HISTORY_LIMIT: usize = 200;
 const CACHE_LIMIT: usize = 400;
 
-/// Bumped whenever a stored setting needs fixing up on load. See `migrate_settings`.
 const SETTINGS_VERSION: u32 = 1;
-
-/* ---------------------------------------------------------------- settings */
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -79,7 +76,6 @@ struct Settings {
     popup_x: Option<i32>,
     #[serde(default)]
     popup_y: Option<i32>,
-    // Absent (0) in every file written before migrations existed.
     #[serde(default)]
     settings_version: u32,
 }
@@ -134,8 +130,6 @@ fn default_font() -> String {
     "'Segoe UI', system-ui, sans-serif".to_string()
 }
 
-/* ------------------------------------------------------------ persisted io */
-
 fn config_dir(app: &AppHandle) -> PathBuf {
     let dir = app.path().app_config_dir().expect("no app config dir");
     let _ = std::fs::create_dir_all(&dir);
@@ -174,10 +168,6 @@ fn persist_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> 
     std::fs::write(settings_path(app), json).map_err(|e| e.to_string())
 }
 
-/// Every settings file written before this feature existed stores
-/// `autoTranslateClipboard: true`, because that used to be the default for a
-/// toggle that did nothing. Now that it does something — a DeepL call on every
-/// open — that stale `true` is not a real choice, so it is reset once.
 fn migrate_settings(app: &AppHandle) {
     if !settings_path(app).exists() {
         return;
@@ -198,16 +188,12 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// A string, not a number: these are nanosecond timestamps, and JSON numbers
-/// lose precision past 2^53 once they reach the webview.
 fn unique_id() -> String {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos().to_string())
         .unwrap_or_else(|_| "0".to_string())
 }
-
-/* ------------------------------------------------------- history and cache */
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -235,7 +221,6 @@ struct AppState {
     cache: Mutex<Vec<CacheEntry>>,
 }
 
-/// Pulls history and cache off disk into `AppState` at startup.
 fn load_state(app: &AppHandle) {
     let state = app.state::<AppState>();
 
@@ -281,9 +266,6 @@ fn cache_store(app: &AppHandle, text: &str, target: &str, translated: &str, dete
     write_json(&cache_path(app), &snapshot);
 }
 
-/// Locks the history, applies `edit`, writes it back to disk and returns the
-/// new list. The lock guard must be a named local declared *after* `state`, or
-/// it outlives the borrow it came from.
 fn with_history<F>(app: &AppHandle, edit: F) -> Vec<HistoryEntry>
 where
     F: FnOnce(&mut Vec<HistoryEntry>),
@@ -356,7 +338,6 @@ fn get_history(app: AppHandle) -> Vec<HistoryEntry> {
     locked.map(|history| history.clone()).unwrap_or_default()
 }
 
-/// Clears the history but keeps pinned entries — those were kept on purpose.
 #[tauri::command]
 fn clear_history(app: AppHandle) -> Vec<HistoryEntry> {
     with_history(&app, |history| history.retain(|entry| entry.pinned))
@@ -375,8 +356,6 @@ fn toggle_history_pin(app: AppHandle, id: String) -> Vec<HistoryEntry> {
         }
     })
 }
-
-/* ------------------------------------------------------ language direction */
 
 const PT_WORDS: &[&str] = &[
     " o ",
@@ -536,9 +515,6 @@ const EN_WORDS: &[&str] = &[
     " please ",
 ];
 
-/// Picks which language to translate *into*. DeepL needs a target up front, but
-/// it detects the source itself — so a wrong guess here is corrected by a retry
-/// in `translate_text`, not by this heuristic being perfect.
 fn guess_target(text: &str) -> &'static str {
     let lowered = text.to_lowercase();
 
@@ -576,7 +552,6 @@ fn guess_target(text: &str) -> &'static str {
     if pt != en {
         return if pt > en { "EN" } else { "PT" };
     }
-    // w/y/k are far more common in English than in Portuguese.
     if lowered.contains(['w', 'y', 'k']) {
         "PT"
     } else {
@@ -591,8 +566,6 @@ fn normalize_target(target: &str) -> String {
         "EN".to_string()
     }
 }
-
-/* ------------------------------------------------------------------ deepl  */
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -610,7 +583,6 @@ struct Usage {
     character_limit: u64,
 }
 
-/// Free-tier keys end in `:fx` and live on a different host.
 fn deepl_endpoint(key: &str, path: &str) -> String {
     let host = if key.ends_with(":fx") {
         "https://api-free.deepl.com"
@@ -631,7 +603,6 @@ fn check_status(code: u16) -> Result<(), String> {
     }
 }
 
-/// Returns `(translated text, language DeepL detected in the source)`.
 async fn deepl_translate(
     client: &reqwest::Client,
     text: &str,
@@ -700,8 +671,6 @@ async fn translate_text(
     let client = reqwest::Client::new();
     let (mut translated, mut detected) = deepl_translate(&client, &text, &target, &key).await?;
 
-    // The guess was wrong: DeepL found the text already in the target language,
-    // so translate the other way instead.
     if auto && detected.starts_with(&target) {
         target = if target == "EN" { "PT" } else { "EN" }.to_string();
         if let Some(hit) = cache_lookup(app, &text, &target) {
@@ -765,8 +734,6 @@ async fn get_usage(app: AppHandle) -> Result<Usage, String> {
     })
 }
 
-/* --------------------------------------------------------------- windows   */
-
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MiniPayload {
@@ -775,13 +742,9 @@ struct MiniPayload {
     error: Option<String>,
 }
 
-/// Keeps a window fully inside the usable area of the monitor it sits on.
-/// `work_area` rather than `size`, so the bubble never slides under the taskbar.
 fn clamp_to_screen(win: &WebviewWindow, x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
     const MARGIN: i32 = 12;
 
-    // The monitor is picked by full bounds (the cursor can legitimately be over
-    // the taskbar), but the clamp itself uses the usable area.
     let mut area: Option<(i32, i32, i32, i32)> = None;
 
     if let Ok(monitors) = win.available_monitors() {
@@ -918,10 +881,6 @@ fn resize_mini(app: AppHandle, height: f64) {
     let height = height.max(80.0);
     let _ = win.set_size(tauri::LogicalSize::new(360.0_f64, height));
 
-    // The bubble is first placed at the cursor with whatever height it had from
-    // the previous translation, then grows to fit this text — which is how it
-    // ended up hanging off the bottom of the screen. Re-clamp with the size it
-    // is about to have, not the one it is queried as having.
     let scale = win.scale_factor().unwrap_or(1.0);
     let width = (360.0 * scale).round() as i32;
     let height = (height * scale).round() as i32;
@@ -939,8 +898,6 @@ fn set_clipboard(app: AppHandle, text: String) -> Result<(), String> {
     app.clipboard().write_text(text).map_err(|e| e.to_string())
 }
 
-/* --------------------------------------------------------- selection flows */
-
 struct Captured {
     cursor: Option<(i32, i32)>,
     original: Option<String>,
@@ -956,10 +913,6 @@ fn press_combo(enigo: &mut enigo::Enigo, key: enigo::Key) {
     let _ = enigo.key(Key::Control, Direction::Release);
 }
 
-/// Copies whatever is selected in the focused app by simulating Ctrl+C, using a
-/// sentinel clipboard value to tell "nothing was selected" from "the selection
-/// happened to equal the old clipboard". The sleeps are load-bearing: the OS
-/// needs time to deliver the keystrokes and update the clipboard.
 fn capture_selection(app: &AppHandle, enigo: &mut enigo::Enigo) -> Captured {
     use enigo::{Key, Mouse};
 
@@ -1033,7 +986,6 @@ fn translate_selection(app: &AppHandle) {
     });
 }
 
-/// Translates the current selection and pastes the result over it.
 fn replace_selection(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
@@ -1084,8 +1036,6 @@ fn replace_selection(app: &AppHandle) {
     });
 }
 
-/* ------------------------------------------------------------- screen ocr  */
-
 #[tauri::command]
 fn ocr_available() -> bool {
     ocr::available()
@@ -1098,7 +1048,6 @@ fn cancel_region_capture(app: AppHandle) {
     }
 }
 
-/// Covers the monitor under the cursor with the transparent selection overlay.
 #[tauri::command]
 fn start_region_capture(app: AppHandle) {
     if !ocr::available() {
@@ -1146,8 +1095,6 @@ fn start_region_capture(app: AppHandle) {
     let _ = win.set_focus();
 }
 
-/// Takes the dragged rectangle (CSS pixels, overlay-relative), reads the text
-/// under it and hands it to the bubble.
 #[tauri::command]
 fn ocr_region(app: AppHandle, x: f64, y: f64, width: f64, height: f64) {
     let Some(overlay) = app.get_webview_window("overlay") else {
@@ -1165,8 +1112,6 @@ fn ocr_region(app: AppHandle, x: f64, y: f64, width: f64, height: f64) {
     let ph = (height * scale).round() as i32;
 
     std::thread::spawn(move || {
-        // Give the compositor time to actually take the overlay off screen,
-        // otherwise it ends up in the capture.
         std::thread::sleep(Duration::from_millis(140));
 
         let anchor = Some((px, py + ph + 12));
@@ -1193,15 +1138,11 @@ fn ocr_region(app: AppHandle, x: f64, y: f64, width: f64, height: f64) {
     });
 }
 
-/* ---------------------------------------------------------------- settings */
-
 #[tauri::command]
 fn get_settings(app: AppHandle) -> Settings {
     load_settings(&app)
 }
 
-/// Merges over the stored settings so fields the UI does not own (window
-/// position, pause state, schema version) survive a save.
 #[tauri::command]
 fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     let current = load_settings(&app);
@@ -1230,8 +1171,6 @@ fn get_autostart(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
-/// Enables "start with Windows" on the very first run only, so a user who turns
-/// it off never gets it re-enabled behind their back.
 fn seed_autostart_default(app: &AppHandle) {
     let marker = config_dir(app).join(".autostart_seeded");
     if !marker.exists() {
@@ -1239,8 +1178,6 @@ fn seed_autostart_default(app: &AppHandle) {
         let _ = std::fs::write(&marker, "1");
     }
 }
-
-/* --------------------------------------------------------------- shortcuts */
 
 fn register_global_shortcuts(app: &AppHandle, settings: &Settings) -> Result<(), String> {
     let shortcuts = app.global_shortcut();
@@ -1299,8 +1236,6 @@ fn set_shortcuts_paused(app: AppHandle, paused: bool) -> Result<(), String> {
     register_global_shortcuts(&app, &settings)
 }
 
-/* -------------------------------------------------------------------- tray */
-
 fn build_tray_menu(app: &AppHandle, paused: bool) -> tauri::Result<Menu<Wry>> {
     let open = MenuItem::with_id(app, "open", "Open Lexo", true, None::<&str>)?;
     let history = MenuItem::with_id(app, "history", "History", true, None::<&str>)?;
@@ -1340,8 +1275,6 @@ fn open_view(app: &AppHandle, view: &str) {
         let _ = win.emit("open-view", view.to_string());
     }
 }
-
-/* --------------------------------------------------------------------- run */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

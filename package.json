@@ -1,7 +1,14 @@
 {
   "name": "tradutor",
   "version": "0.1.7",
-  "description": "Tradutor PT ⇄ EN com atalho global (Tauri)",
+  "description": "Global-hotkey PT ⇄ EN desktop translator (Tauri)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EduardooPV/lexo.git"
+  },
+  "homepage": "https://github.com/EduardooPV/lexo#readme",
+  "bugs": "https://github.com/EduardooPV/lexo/issues",
   "private": true,
   "scripts": {
     "dev": "tauri dev",

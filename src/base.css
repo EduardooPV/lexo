@@ -1,8 +1,4 @@
-/* Design tokens and the button system, shared by every window so a button
-   looks and behaves the same wherever it appears. */
-
 :root{
-  /* Set from settings.json by theme.js — defaults mirror the Dracula preset. */
   --parchment: #282a36;
   --gold:      #bd93f9;
   --ink:       #f8f8f2;
@@ -14,8 +10,6 @@
   --on-accent: #ffffff;
   --mono-font: 'Consolas', ui-monospace, monospace;
 
-  /* Surfaces mix the background toward the text colour so light and dark
-     custom themes stay coherent without a second set of variables. */
   --surface: color-mix(in srgb, var(--parchment), var(--ink) 7%);
   --surface-strong: color-mix(in srgb, var(--parchment), var(--ink) 12%);
   --border: color-mix(in srgb, var(--parchment), var(--ink) 20%);
@@ -28,10 +22,6 @@
 }
 
 *{ box-sizing: border-box; }
-
-/* --------------------------------------------------------------- buttons ---
-   Every clickable control is `.btn` plus modifiers, so height, radius, focus
-   ring and transitions are defined exactly once. */
 
 .btn{
   display: inline-flex;
@@ -84,8 +74,6 @@
 
 .btn.is-active{ background: var(--red); border-color: var(--red); color: #fff; }
 .btn.is-success{ color: var(--gold); }
-
-/* ---------------------------------------------------------------- status --- */
 
 .status{
   min-height: 14px;

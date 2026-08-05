@@ -1,8 +1,3 @@
-// Icon set (Lucide, ISC licensed) vendored as path data: the Content-Security-
-// Policy forbids loading anything off-host, so there is no CDN option. Every
-// glyph is drawn on the same 24x24 grid with a 2px round stroke, which is what
-// makes them look like one family.
-
 const GLYPHS = {
   back: '<path d="m15 18-6-6 6-6"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
@@ -72,8 +67,6 @@ export function iconMarkup(name) {
   );
 }
 
-// Fills every [data-icon] element with its glyph. Safe to call again on the
-// same nodes — the content is replaced, never appended.
 export function hydrate(root = document) {
   root.querySelectorAll('[data-icon]').forEach((node) => {
     node.innerHTML = iconMarkup(node.dataset.icon);
