@@ -1406,3 +1406,311 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(id: &str, source: &str, to: &str, at: u64, pinned: bool) -> HistoryEntry {
+        HistoryEntry {
+            id: id.to_string(),
+            source: source.to_string(),
+            translated: format!("{source} translated"),
+            from: if to == "EN" { "PT" } else { "EN" }.to_string(),
+            to: to.to_string(),
+            at,
+            pinned,
+        }
+    }
+
+    mod guess_target {
+        use super::*;
+
+        #[test]
+        fn portuguese_diacritics_are_decisive_on_their_own() {
+            assert_eq!(guess_target("ação"), "EN");
+            assert_eq!(guess_target("você"), "EN");
+            assert_eq!(guess_target("não"), "EN");
+        }
+
+        #[test]
+        fn reads_plain_portuguese_without_accents() {
+            assert_eq!(guess_target("preciso revisar isso antes do deploy"), "EN");
+            assert_eq!(guess_target("bom dia para voce"), "EN");
+        }
+
+        #[test]
+        fn reads_plain_english() {
+            assert_eq!(
+                guess_target("I need to review this before the deploy"),
+                "PT"
+            );
+            assert_eq!(guess_target("the build failed on the runner"), "PT");
+        }
+
+        #[test]
+        fn never_panics_on_degenerate_input() {
+            for text in ["", " ", "123", "!@#$", "\n\t"] {
+                let _ = guess_target(text);
+            }
+        }
+    }
+
+    mod normalize_target {
+        use super::*;
+
+        #[test]
+        fn accepts_either_case_and_regional_variants() {
+            assert_eq!(normalize_target("PT"), "PT");
+            assert_eq!(normalize_target("pt"), "PT");
+            assert_eq!(normalize_target("pt-BR"), "PT");
+            assert_eq!(normalize_target("EN"), "EN");
+            assert_eq!(normalize_target("en-US"), "EN");
+        }
+
+        #[test]
+        fn anything_unrecognised_falls_back_to_english() {
+            assert_eq!(normalize_target("klingon"), "EN");
+            assert_eq!(normalize_target(""), "EN");
+        }
+    }
+
+    mod deepl_endpoint {
+        use super::*;
+
+        #[test]
+        fn free_tier_keys_route_to_the_free_host() {
+            assert_eq!(
+                deepl_endpoint("abc-123:fx", "translate"),
+                "https://api-free.deepl.com/v2/translate"
+            );
+        }
+
+        #[test]
+        fn paid_keys_route_to_the_paid_host() {
+            assert_eq!(
+                deepl_endpoint("abc-123", "translate"),
+                "https://api.deepl.com/v2/translate"
+            );
+        }
+
+        #[test]
+        fn the_same_split_applies_to_every_path() {
+            assert_eq!(
+                deepl_endpoint("abc:fx", "usage"),
+                "https://api-free.deepl.com/v2/usage"
+            );
+        }
+    }
+
+    mod check_status {
+        use super::*;
+
+        #[test]
+        fn success_codes_pass() {
+            assert!(check_status(200).is_ok());
+            assert!(check_status(299).is_ok());
+        }
+
+        #[test]
+        fn auth_and_quota_get_prefixes_the_ui_keys_off() {
+            assert!(check_status(403).unwrap_err().starts_with("deepl_auth:"));
+            assert!(check_status(456).unwrap_err().starts_with("limit:"));
+        }
+
+        #[test]
+        fn other_failures_fall_back_to_a_generic_http_error() {
+            assert!(check_status(500).unwrap_err().starts_with("http_error:"));
+            assert!(check_status(404).unwrap_err().starts_with("http_error:"));
+        }
+    }
+
+    mod cache_key {
+        use super::*;
+
+        #[test]
+        fn the_target_is_part_of_the_key() {
+            assert_ne!(cache_key("hello", "EN"), cache_key("hello", "PT"));
+        }
+
+        #[test]
+        fn the_separator_is_a_control_char_so_keys_cannot_collide() {
+            let key = cache_key("hello", "EN");
+            assert!(key.contains('\u{1}'));
+            assert!(key.starts_with("EN"));
+            assert!(key.ends_with("hello"));
+        }
+    }
+
+    mod push_entry {
+        use super::*;
+
+        #[test]
+        fn adds_a_new_entry_at_the_front() {
+            let mut history = Vec::new();
+            push_entry(&mut history, "hello", "ola", "EN", "PT");
+
+            assert_eq!(history.len(), 1);
+            assert_eq!(history[0].source, "hello");
+            assert_eq!(history[0].translated, "ola");
+            assert_eq!(history[0].to, "PT");
+            assert!(!history[0].pinned);
+        }
+
+        #[test]
+        fn retranslating_the_same_text_updates_instead_of_duplicating() {
+            let mut history = Vec::new();
+            push_entry(&mut history, "hello", "ola", "EN", "PT");
+            push_entry(&mut history, "hello", "olá", "EN", "PT");
+
+            assert_eq!(history.len(), 1);
+            assert_eq!(history[0].translated, "olá");
+        }
+
+        #[test]
+        fn the_same_text_in_the_other_direction_is_a_separate_entry() {
+            let mut history = Vec::new();
+            push_entry(&mut history, "hello", "ola", "EN", "PT");
+            push_entry(&mut history, "hello", "hello", "EN", "EN");
+
+            assert_eq!(history.len(), 2);
+        }
+
+        #[test]
+        fn unpinned_entries_are_evicted_past_the_limit() {
+            let mut history: Vec<HistoryEntry> = (0..HISTORY_LIMIT)
+                .map(|i| {
+                    entry(
+                        &i.to_string(),
+                        &format!("source {i}"),
+                        "EN",
+                        i as u64,
+                        false,
+                    )
+                })
+                .collect();
+
+            push_entry(&mut history, "the newest one", "translated", "PT", "EN");
+
+            assert_eq!(history.len(), HISTORY_LIMIT);
+            assert!(history.iter().any(|e| e.source == "the newest one"));
+            assert!(!history.iter().any(|e| e.source == "source 0"));
+        }
+
+        #[test]
+        fn pinned_entries_survive_eviction_even_when_oldest() {
+            let mut history = vec![entry("pinned", "keep me", "EN", 0, true)];
+            history.extend((0..HISTORY_LIMIT).map(|i| {
+                entry(
+                    &i.to_string(),
+                    &format!("source {i}"),
+                    "EN",
+                    (i + 1) as u64,
+                    false,
+                )
+            }));
+
+            push_entry(&mut history, "the newest one", "translated", "PT", "EN");
+
+            assert!(
+                history.iter().any(|e| e.source == "keep me"),
+                "a pinned entry must never be evicted"
+            );
+            assert_eq!(history.iter().filter(|e| !e.pinned).count(), HISTORY_LIMIT);
+        }
+
+        #[test]
+        fn entries_end_up_newest_first() {
+            let mut history = vec![
+                entry("a", "oldest", "EN", 10, false),
+                entry("b", "middle", "EN", 20, false),
+            ];
+            push_entry(&mut history, "newest", "translated", "PT", "EN");
+
+            let timestamps: Vec<u64> = history.iter().map(|e| e.at).collect();
+            let mut sorted = timestamps.clone();
+            sorted.sort_by(|a, b| b.cmp(a));
+            assert_eq!(timestamps, sorted);
+        }
+    }
+
+    mod unique_id {
+        use super::*;
+
+        #[test]
+        fn is_a_string_so_the_webview_cannot_lose_precision() {
+            let id = unique_id();
+            assert!(id.parse::<u128>().unwrap() > (1u128 << 53));
+        }
+
+        #[test]
+        fn successive_ids_differ() {
+            assert_ne!(unique_id(), unique_id());
+        }
+    }
+
+    mod settings {
+        use super::*;
+
+        #[test]
+        fn defaults_match_the_documented_shortcuts() {
+            let settings = Settings::default();
+            assert_eq!(settings.hotkey, "Alt+R");
+            assert_eq!(settings.selection_hotkey, "Alt+T");
+            assert_eq!(settings.replace_hotkey, "Alt+Shift+T");
+            assert_eq!(settings.ocr_hotkey, "Alt+S");
+            assert_eq!(settings.swap_hotkey, "Alt+E");
+        }
+
+        #[test]
+        fn auto_translate_clipboard_is_opt_in() {
+            assert!(!Settings::default().auto_translate_clipboard);
+        }
+
+        #[test]
+        fn a_fresh_default_is_already_at_the_current_schema_version() {
+            assert_eq!(Settings::default().settings_version, SETTINGS_VERSION);
+        }
+
+        #[test]
+        fn an_empty_json_object_loads_with_every_default_filled_in() {
+            let settings: Settings = serde_json::from_str("{}").unwrap();
+            assert_eq!(settings.hotkey, "Alt+R");
+            assert_eq!(settings.appearance.bg, "#282a36");
+            assert!(settings.deepl_key.is_empty());
+        }
+
+        #[test]
+        fn a_pre_migration_file_reports_schema_version_zero() {
+            let stored = r#"{"hotkey":"Alt+R","autoTranslateClipboard":true}"#;
+            let settings: Settings = serde_json::from_str(stored).unwrap();
+            assert_eq!(settings.settings_version, 0);
+            assert!(settings.auto_translate_clipboard);
+        }
+
+        #[test]
+        fn unknown_fields_from_a_newer_version_do_not_break_loading() {
+            let stored = r#"{"hotkey":"Alt+K","somethingFromTheFuture":42}"#;
+            let settings: Settings = serde_json::from_str(stored).unwrap();
+            assert_eq!(settings.hotkey, "Alt+K");
+        }
+
+        #[test]
+        fn round_trips_through_json_unchanged() {
+            let original = Settings::default();
+            let restored: Settings =
+                serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
+            assert_eq!(restored.hotkey, original.hotkey);
+            assert_eq!(restored.settings_version, original.settings_version);
+            assert_eq!(restored.appearance.accent, original.appearance.accent);
+        }
+
+        #[test]
+        fn serialises_as_camel_case_for_the_webview() {
+            let json = serde_json::to_string(&Settings::default()).unwrap();
+            assert!(json.contains("autoTranslateClipboard"));
+            assert!(json.contains("selectionHotkey"));
+            assert!(!json.contains("auto_translate_clipboard"));
+        }
+    }
+}
