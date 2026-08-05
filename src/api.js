@@ -1,6 +1,3 @@
-// Thin wrappers over the Rust commands, plus the one place that turns a backend
-// error prefix into something a person can read.
-
 const { invoke } = window.__TAURI__.core;
 
 export const listen = window.__TAURI__.event.listen;
@@ -11,7 +8,6 @@ export const updateShortcuts = () => invoke('update_shortcuts');
 export const getShortcutsPaused = () => invoke('get_shortcuts_paused');
 export const setShortcutsPaused = (paused) => invoke('set_shortcuts_paused', { paused });
 
-// `target` is 'PT', 'EN', or null to let DeepL decide the direction.
 export const translate = (text, target = null) => invoke('translate', { text, target });
 export const getUsage = () => invoke('get_usage');
 

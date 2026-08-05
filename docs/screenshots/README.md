@@ -1,15 +1,16 @@
-# Screenshots do README
+# README screenshots
 
-Salve os prints do app aqui com **exatamente** estes nomes (usados na tabela do README):
+Drop app screenshots here when adding visuals back to the main README. Suggested names:
 
-| Arquivo                 | Tela                                             |
-|-------------------------|--------------------------------------------------|
-| `translate-en-pt.png`   | Tradução EN → PT                                 |
-| `translate-pt-en.png`   | Tradução PT → EN (detecção automática)           |
-| `settings.png`          | Configurações (chave DeepL + atalhos)            |
-| `appearance.png`        | Aparência (opacidade, cores, fonte, tema)        |
-| `home.png`              | Página inicial (campo vazio)                      |
+| File                   | Screen                                  |
+|-------------------------|-----------------------------------------|
+| `home.png`               | Home view (empty input)                 |
+| `translate-pt-en.png`    | A PT → EN translation (auto-detected)   |
+| `translate-en-pt.png`    | An EN → PT translation                  |
+| `history.png`            | History with search and pinned entries  |
+| `settings.png`           | Settings (DeepL key, shortcuts, usage)  |
+| `appearance.png`         | Appearance (opacity, colors, font, theme) |
 
-Dica: você também pode arrastar as imagens direto na caixa de edição do README no
-GitHub — ele hospeda em `github.com/user-attachments/assets/...` e gera o link.
-Nesse caso, troque os `src` da tabela pelos links gerados.
+You can also drag images directly into the README edit box on GitHub — it hosts them
+at `github.com/user-attachments/assets/...` and generates the link, which you can then
+paste straight into the README.

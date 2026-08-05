@@ -1,5 +1,3 @@
-/* Full-screen region picker for screen OCR. */
-
 html, body{
   margin: 0;
   width: 100%;
@@ -18,8 +16,6 @@ html, body{
   transition: opacity .1s;
 }
 
-/* The selection is a clear hole: the huge spread shadow dims everything else,
-   which is why the backdrop is faded out while dragging. */
 #selection{
   position: fixed;
   border: 1px solid var(--gold);

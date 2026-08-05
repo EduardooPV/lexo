@@ -1,5 +1,3 @@
-// Appearance shared by the popup and the bubble.
-
 export const DEFAULT_APPEARANCE = {
   opacity: 1,
   bg: '#282a36',
@@ -22,7 +20,6 @@ export const THEMES = [
   { name: 'GitHub Light', bg: '#ffffff', accent: '#0969da', text: '#1f2328' }
 ];
 
-// White or near-black over `hex`, whichever has more contrast.
 export function readableOn(hex) {
   const value = (hex || '').replace('#', '');
   if (value.length < 6) return '#ffffff';
