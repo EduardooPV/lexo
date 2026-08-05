@@ -1138,6 +1138,58 @@ fn ocr_region(app: AppHandle, x: f64, y: f64, width: f64, height: f64) {
     });
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    version: String,
+    notes: Option<String>,
+}
+
+async fn pending_update(app: &AppHandle) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    app.updater()
+        .map_err(|e| format!("updater_error: {e}"))?
+        .check()
+        .await
+        .map_err(|e| format!("updater_error: {e}"))
+}
+
+#[tauri::command]
+async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
+    Ok(pending_update(&app).await?.map(|update| UpdateInfo {
+        version: update.version.clone(),
+        notes: update.body.clone(),
+    }))
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    let Some(update) = pending_update(&app).await? else {
+        return Err("updater_none: already on the latest version.".to_string());
+    };
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| format!("updater_error: {e}"))?;
+    app.restart();
+}
+
+fn check_for_update_on_startup(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Ok(Some(update)) = pending_update(&app).await {
+            let _ = app.emit_to(
+                "popup",
+                "update-available",
+                UpdateInfo {
+                    version: update.version.clone(),
+                    notes: update.body.clone(),
+                },
+            );
+        }
+    });
+}
+
 #[tauri::command]
 fn get_settings(app: AppHandle) -> Settings {
     load_settings(&app)
@@ -1281,6 +1333,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
@@ -1337,7 +1390,9 @@ pub fn run() {
             ocr_available,
             ocr_region,
             start_region_capture,
-            cancel_region_capture
+            cancel_region_capture,
+            check_for_update,
+            install_update
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -1356,6 +1411,7 @@ pub fn run() {
             }
 
             seed_autostart_default(&handle);
+            check_for_update_on_startup(&handle);
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
