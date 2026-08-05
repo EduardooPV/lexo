@@ -168,7 +168,7 @@ jobs:
             fs.writeFileSync(
               lockPath,
               lock.replace(
-                /(name = \"tradutor\"\nversion = \")\d+\.\d+\.\d+(\")/,
+                /(name = \"lexo\"\nversion = \")\d+\.\d+\.\d+(\")/,
                 (m, before, after) => before + version + after
               )
             );

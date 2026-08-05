@@ -4,7 +4,7 @@ import { applyAppearance } from './theme.js';
 
 const el = (id) => document.getElementById(id);
 
-const LANGUAGE_NAMES = { PT: 'Português', EN: 'English' };
+const LANGUAGE_NAMES = { PT: 'Portuguese', EN: 'English' };
 const EMPTY_MESSAGE = {
   selection: 'No text selected — nothing was copied.',
   ocr: 'No text found in that region.'

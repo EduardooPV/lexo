@@ -1223,11 +1223,17 @@ fn get_autostart(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
-fn seed_autostart_default(app: &AppHandle) {
+fn seed_or_refresh_autostart(app: &AppHandle) {
     let marker = config_dir(app).join(".autostart_seeded");
     if !marker.exists() {
         let _ = app.autolaunch().enable();
         let _ = std::fs::write(&marker, "1");
+        return;
+    }
+
+    let manager = app.autolaunch();
+    if manager.is_enabled().unwrap_or(false) {
+        let _ = manager.enable();
     }
 }
 
@@ -1410,7 +1416,7 @@ pub fn run() {
                 let _ = register_global_shortcuts(&handle, &fallback);
             }
 
-            seed_autostart_default(&handle);
+            seed_or_refresh_autostart(&handle);
             check_for_update_on_startup(&handle);
 
             TrayIconBuilder::with_id("main-tray")
