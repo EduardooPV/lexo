@@ -694,6 +694,34 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+function showUpdateBanner(update) {
+  if (!update || !update.version) return;
+  el('updateText').textContent = `Version ${update.version} is available`;
+  el('updateBanner').hidden = false;
+  fitWindow();
+}
+
+el('btnDismissUpdate').addEventListener('click', () => {
+  el('updateBanner').hidden = true;
+  fitWindow();
+});
+
+el('btnInstallUpdate').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Updating…';
+  try {
+    await api.installUpdate();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Update';
+    fail(status, api.describeError(error));
+    fitWindow();
+  }
+});
+
+api.listen('update-available', (event) => showUpdateBanner(event.payload));
+
 api.listen('popup-shown', (event) => {
   showView('main');
   const clipboard = (event.payload && event.payload.clipboard) || '';

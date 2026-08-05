@@ -25,6 +25,9 @@ export const resizeMini = (height) => invoke('resize_mini', { height });
 export const setAutostart = (enabled) => invoke('set_autostart', { enabled });
 export const getAutostart = () => invoke('get_autostart');
 
+export const checkForUpdate = () => invoke('check_for_update');
+export const installUpdate = () => invoke('install_update');
+
 export const ocrAvailable = () => invoke('ocr_available');
 export const ocrRegion = (rect) => invoke('ocr_region', rect);
 export const startRegionCapture = () => invoke('start_region_capture');
@@ -38,6 +41,8 @@ const MESSAGES = [
   ['ocr_unsupported', 'Screen OCR is only available on Windows.'],
   ['capture_error', 'Could not read that screen region.'],
   ['ocr_error', 'Could not read the text in that region.'],
+  ['updater_none', 'You are already on the latest version.'],
+  ['updater_error', 'Could not reach the update server. Try again later.'],
   ['api_error', "Couldn't translate that text. Try rephrasing."],
   ['decode_error', 'Unexpected response from DeepL.'],
   ['empty', 'Nothing to translate.']
