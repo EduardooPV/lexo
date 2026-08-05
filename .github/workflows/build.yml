@@ -136,14 +136,6 @@ jobs:
         with:
           ref: main
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust build
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -165,8 +157,16 @@ jobs:
               cargoPath,
               cargo.replace(/^version = \"\d+\.\d+\.\d+\"/m, 'version = \"' + version + '\"')
             );
+            const lockPath = 'src-tauri/Cargo.lock';
+            const lock = fs.readFileSync(lockPath, 'utf8');
+            fs.writeFileSync(
+              lockPath,
+              lock.replace(
+                /(name = \"tradutor\"\nversion = \")\d+\.\d+\.\d+(\")/,
+                (m, before, after) => before + version + after
+              )
+            );
           "
-          cargo check --quiet --manifest-path src-tauri/Cargo.toml
 
       - name: Commit version bump
         run: |
