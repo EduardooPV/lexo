@@ -4297,6 +4297,8 @@ dependencies = [
  "tauri-plugin-autostart",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-global-shortcut",
+ "windows 0.61.3",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

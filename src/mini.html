@@ -4,36 +4,40 @@
 <meta charset="UTF-8">
 <title>Translation</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="mini.css">
 </head>
 <body>
-<div id="bubble">
-  <button id="close" title="Close (Esc)">✕</button>
+<!-- "deep" makes the whole bubble draggable; buttons block it on their own and
+     the text areas opt out so they stay selectable. -->
+<div id="bubble" data-tauri-drag-region="deep">
 
   <div class="block">
-    <div class="lang" id="srcLang">—</div>
-    <div class="line">
-      <button class="spk" id="spkSrc" title="Listen">
-        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
-      </button>
-      <div class="txt" id="srcText"></div>
+    <div class="block-head">
+      <span class="lang" id="srcLang">—</span>
+      <div class="block-actions">
+        <button class="btn btn--subtle btn--xs btn--icon" id="speakSrc" data-icon="volume" title="Listen"></button>
+        <button class="btn btn--subtle btn--xs btn--icon" id="close" data-icon="close" title="Close (Esc)"></button>
+      </div>
     </div>
+    <div class="txt" id="srcText" data-tauri-drag-region="false"></div>
   </div>
 
   <div class="sep"></div>
 
   <div class="block">
-    <div class="lang" id="outLang">—</div>
-    <div class="line">
-      <button class="spk" id="spkOut" title="Listen">
-        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4z"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M16 8.8a4.5 4.5 0 0 1 0 6.4"/></svg>
-      </button>
-      <div class="txt" id="outText"></div>
+    <div class="block-head">
+      <span class="lang" id="outLang">—</span>
+      <div class="block-actions">
+        <button class="btn btn--subtle btn--xs btn--icon" id="speakOut" data-icon="volume" title="Listen"></button>
+        <button class="btn btn--subtle btn--xs btn--icon" id="copyOut" data-icon="copy" title="Copy the translation"></button>
+      </div>
     </div>
+    <div class="txt" id="outText" data-tauri-drag-region="false"></div>
   </div>
 
-  <div class="status" id="miniStatus"></div>
+  <div class="status" id="miniStatus" data-tauri-drag-region="false"></div>
 </div>
-<script src="mini.js"></script>
+<script type="module" src="mini.js"></script>
 </body>
 </html>

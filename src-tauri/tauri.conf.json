@@ -41,6 +41,22 @@
         "shadow": false,
         "skipTaskbar": true,
         "focus": true
+      },
+      {
+        "label": "overlay",
+        "title": "Select a region",
+        "url": "overlay.html",
+        "width": 800,
+        "height": 600,
+        "visible": false,
+        "resizable": false,
+        "center": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "skipTaskbar": true,
+        "focus": true
       }
     ],
     "security": {

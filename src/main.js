@@ -1,6 +1,6 @@
-// Tauri global API (withGlobalTauri = true)
-const { invoke } = window.__TAURI__.core;
-const { listen } = window.__TAURI__.event;
+import * as api from './api.js';
+import { hydrate, setIcon } from './icons.js';
+import { DEFAULT_APPEARANCE, THEMES, applyAppearance } from './theme.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -8,74 +8,531 @@ const src = el('src');
 const out = el('out');
 const outputCard = el('outputCard');
 const status = el('status');
-const btnTranslate = el('btnTranslate');
 const dirBadge = el('dirBadge');
-const outDir = el('outDir');
-const btnCopy = el('btnCopy');
+const dirLabel = el('dirLabel');
 
-const mainView = el('mainView');
-const settingsView = el('settingsView');
-const appearanceView = el('appearanceView');
-
-// Defaults: Dracula theme
-const DEFAULT_APPEARANCE = {
-  opacity: 1,
-  bg: '#282a36',
-  accent: '#bd93f9',
-  text: '#f8f8f2',
-  font: "'Segoe UI', system-ui, sans-serif"
+const VIEWS = {
+  main: el('mainView'),
+  history: el('historyView'),
+  settings: el('settingsView'),
+  appearance: el('appearanceView')
 };
 
-let settings = {
+const DEFAULT_SETTINGS = {
   hotkey: 'Alt+R',
   swapHotkey: 'Alt+E',
   selectionHotkey: 'Alt+T',
-  autoTranslateClipboard: true,
+  replaceHotkey: 'Alt+Shift+T',
+  ocrHotkey: 'Alt+S',
+  autoTranslateClipboard: false,
   deeplKey: '',
   appearance: { ...DEFAULT_APPEARANCE }
 };
 
-// null = auto-detect; otherwise a forced direction: 'pt-en' or 'en-pt'
-let forcedDir = null;
-// Direction of the last produced translation (for the output speaker)
-let lastResultDir = 'pt-en';
+let settings = { ...DEFAULT_SETTINGS };
+// null = let DeepL decide; otherwise the language we force it to translate into.
+let forcedTarget = null;
+let lastResult = null;
+let historyEntries = [];
 
-// Pick white or near-black for text over `hex`, whichever has more contrast.
-function readableOn(hex) {
-  const c = hex.replace('#', '');
-  if (c.length < 6) return '#ffffff';
-  const ch = (i) => parseInt(c.substr(i, 2), 16) / 255;
-  const lin = (x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * lin(ch(0)) + 0.7152 * lin(ch(2)) + 0.0722 * lin(ch(4));
-  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? '#ffffff' : '#1b1b1f';
-}
+hydrate();
 
-/* ---------- Fit window to content (no empty space) ---------- */
+/* --------------------------------------------------------------- plumbing */
+
 function fitWindow() {
   requestAnimationFrame(() => {
-    const h = Math.ceil(document.getElementById('app').scrollHeight);
-    invoke('resize_window', { height: h }).catch(() => {});
+    api.resizeWindow(Math.ceil(el('app').scrollHeight)).catch(() => {});
   });
 }
 
-/* ---------- Transient status toast ---------- */
-function toast(elem, text, ms = 2200) {
-  elem.classList.remove('error');
-  elem.textContent = text;
-  clearTimeout(elem._t);
-  elem._t = setTimeout(() => { elem.textContent = ''; }, ms);
+function toast(node, text, ms = 2200) {
+  node.classList.remove('error');
+  node.textContent = text;
+  clearTimeout(node._timer);
+  node._timer = setTimeout(() => { node.textContent = ''; }, ms);
 }
 
-/* ---------- Appearance ---------- */
-function applyAppearance(a) {
-  const r = document.documentElement.style;
-  r.setProperty('--parchment', a.bg);
-  r.setProperty('--gold', a.accent);
-  r.setProperty('--ink', a.text);
-  r.setProperty('--ui-font', a.font);
-  r.setProperty('--app-opacity', String(a.opacity));
-  r.setProperty('--on-accent', readableOn(a.accent));
+function fail(node, text) {
+  node.classList.add('error');
+  node.textContent = text;
 }
+
+function showView(name) {
+  Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== name; });
+
+  if (name === 'main') {
+    src.focus();
+    src.select();
+  }
+  if (name === 'history') {
+    el('historySearch').value = '';
+    loadHistory();
+  }
+  if (name === 'settings') {
+    el('settingsStatus').textContent = '';
+    refreshUsage();
+  }
+  if (name === 'appearance') {
+    el('appearanceStatus').textContent = '';
+    appearanceToControls(settings.appearance);
+    applyAppearance(settings.appearance);
+    syncThemeSelect();
+  }
+  fitWindow();
+}
+
+/* ------------------------------------------------------------- direction  */
+
+// Only used to pick a voice for text-to-speech and speech recognition — the
+// translation direction itself is decided by DeepL, in the backend.
+function guessSpokenLanguage(text) {
+  return /[ãõáàâêôçéíóú]/i.test(text || '') ? 'pt' : 'en';
+}
+
+const LANGUAGE_NAMES = { PT: 'Portuguese', EN: 'English' };
+
+// Accent badge = DeepL decides. Pink badge = the direction is pinned by hand.
+function updateBadge() {
+  if (forcedTarget) {
+    dirLabel.textContent = forcedTarget === 'EN' ? 'PT → EN' : 'EN → PT';
+    dirBadge.title = `Pinned direction — click or press ${settings.swapHotkey} to change`;
+  } else if (lastResult) {
+    dirLabel.textContent = `${lastResult.detectedSource || '?'} → ${lastResult.target}`;
+    dirBadge.title = `Detected automatically — click or press ${settings.swapHotkey} to pin a direction`;
+  } else {
+    dirLabel.textContent = 'Auto';
+    dirBadge.title = `Detected automatically — click or press ${settings.swapHotkey} to pin a direction`;
+  }
+  dirBadge.classList.toggle('is-forced', Boolean(forcedTarget));
+}
+
+// Always flips whatever direction is currently shown (auto-detected or
+// pinned), so one click is one swap. A 3-way cycle through "auto" used to sit
+// here, but when the auto-detected target already matched the first forced
+// step it looked like the click did nothing — the badge only changed color.
+function cycleDirection() {
+  const shown = forcedTarget || (lastResult && lastResult.target) || 'EN';
+  forcedTarget = shown === 'EN' ? 'PT' : 'EN';
+  updateBadge();
+  if (!outputCard.hidden && src.value.trim()) translate();
+}
+
+/* ------------------------------------------------------------- translate  */
+
+async function translate() {
+  const text = src.value.trim();
+  if (!text) {
+    fail(status, 'Type something before translating.');
+    fitWindow();
+    return;
+  }
+
+  status.classList.remove('error');
+  status.textContent = 'Translating…';
+  el('btnTranslate').disabled = true;
+
+  try {
+    const result = await api.translate(text, forcedTarget);
+    lastResult = { ...result, sourceText: text };
+    out.textContent = result.text;
+    outputCard.hidden = false;
+    el('outDir').textContent = LANGUAGE_NAMES[result.target] || result.target;
+    status.textContent = '';
+    updateBadge();
+  } catch (error) {
+    fail(status, api.describeError(error));
+  } finally {
+    el('btnTranslate').disabled = false;
+    fitWindow();
+  }
+}
+
+el('btnTranslate').addEventListener('click', translate);
+dirBadge.addEventListener('click', cycleDirection);
+
+src.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    translate();
+  }
+});
+
+// Editing invalidates the direction shown for the previous result.
+src.addEventListener('input', () => {
+  if (lastResult && src.value.trim() !== lastResult.sourceText) {
+    lastResult = null;
+    updateBadge();
+  }
+});
+
+el('btnCopy').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  try {
+    await api.setClipboard(out.textContent);
+  } catch (_) {
+    try { await navigator.clipboard.writeText(out.textContent); } catch (_) {}
+  }
+  button.classList.add('is-success');
+  setIcon(button, 'check');
+  clearTimeout(button._timer);
+  button._timer = setTimeout(() => {
+    button.classList.remove('is-success');
+    setIcon(button, 'copy');
+  }, 900);
+});
+
+/* -------------------------------------------------------------- screen ocr */
+
+el('btnOcr').addEventListener('click', async () => {
+  await api.hidePopup().catch(() => {});
+  api.startRegionCapture().catch(() => {});
+});
+
+/* ------------------------------------------------------------ text to speech */
+
+let voices = [];
+function loadVoices() {
+  try { voices = window.speechSynthesis.getVoices() || []; } catch (_) { voices = []; }
+}
+
+// Windows "Online (Natural)" and macOS "Enhanced" voices sound far better than
+// the legacy SAPI5 ones, which are otherwise picked first.
+function scoreVoice(voice) {
+  const name = (voice.name || '').toLowerCase();
+  let score = 0;
+  if (name.includes('natural')) score += 5;
+  if (name.includes('online')) score += 3;
+  if (name.includes('neural') || name.includes('enhanced') || name.includes('premium')) score += 3;
+  if (name.includes('desktop')) score -= 2;
+  return score;
+}
+
+function speak(text, language) {
+  if (!text || !('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = language === 'pt' ? 'pt-BR' : 'en-US';
+  const match = voices
+    .filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(language))
+    .sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
+  if (match) utterance.voice = match;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+
+  el('btnSpeakSrc').addEventListener('click', () => {
+    const detected = lastResult && lastResult.detectedSource;
+    speak(src.value.trim(), detected ? detected.toLowerCase().slice(0, 2) : guessSpokenLanguage(src.value));
+  });
+  el('btnSpeakOut').addEventListener('click', () => {
+    speak(out.textContent.trim(), lastResult ? lastResult.target.toLowerCase() : 'en');
+  });
+} else {
+  el('btnSpeakSrc').hidden = true;
+  el('btnSpeakOut').hidden = true;
+}
+
+/* ------------------------------------------------------------ voice input */
+
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let micTimer = null;
+
+function setMic(active) {
+  el('btnMic').classList.toggle('is-active', active);
+  if (!active) clearTimeout(micTimer);
+}
+
+function stopMic() {
+  clearTimeout(micTimer);
+  try { recognition.abort(); } catch (_) {}
+  try { recognition.stop(); } catch (_) {}
+  setMic(false);
+}
+
+if (SpeechRec) {
+  recognition = new SpeechRec();
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+  recognition.onstart = () => setMic(true);
+  recognition.onend = () => setMic(false);
+  recognition.onresult = (event) => {
+    setMic(false);
+    src.value = event.results[0][0].transcript;
+    translate();
+  };
+  recognition.onerror = (event) => {
+    setMic(false);
+    fail(status, 'Voice input unavailable (' + (event.error || 'error') + ').');
+    fitWindow();
+  };
+
+  el('btnMic').addEventListener('click', () => {
+    if (el('btnMic').classList.contains('is-active')) {
+      stopMic();
+      return;
+    }
+    recognition.lang = forcedTarget === 'EN' ? 'pt-BR' : forcedTarget === 'PT' ? 'en-US' : 'pt-BR';
+    try {
+      recognition.start();
+      setMic(true);
+      micTimer = setTimeout(stopMic, 12000);
+    } catch (_) {
+      setMic(false);
+    }
+  });
+} else {
+  el('btnMic').hidden = true;
+}
+
+/* ---------------------------------------------------------------- history */
+
+function renderHistory() {
+  const query = el('historySearch').value.trim().toLowerCase();
+  const list = el('historyList');
+  const matches = historyEntries.filter(
+    (entry) =>
+      !query ||
+      entry.source.toLowerCase().includes(query) ||
+      entry.translated.toLowerCase().includes(query)
+  );
+
+  list.replaceChildren();
+
+  if (!matches.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = historyEntries.length
+      ? 'Nothing matches that search.'
+      : 'Translations you make will show up here.';
+    list.append(empty);
+    fitWindow();
+    return;
+  }
+
+  for (const entry of matches) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.dataset.id = entry.id;
+
+    const body = document.createElement('div');
+    body.className = 'history-body';
+
+    const pair = document.createElement('div');
+    pair.className = 'history-pair';
+    pair.textContent = `${entry.from} → ${entry.to}`;
+
+    const translated = document.createElement('div');
+    translated.className = 'history-translated';
+    translated.textContent = entry.translated;
+
+    const source = document.createElement('div');
+    source.className = 'history-source';
+    source.textContent = entry.source;
+
+    body.append(pair, translated, source);
+
+    const actions = document.createElement('div');
+    actions.className = 'history-actions';
+    actions.append(
+      historyButton('star', entry.pinned ? 'Unpin' : 'Pin', 'pin', entry.pinned),
+      historyButton('copy', 'Copy the translation', 'copy', false),
+      historyButton('trash', 'Delete', 'delete', false)
+    );
+
+    item.append(body, actions);
+    list.append(item);
+  }
+
+  hydrate(list);
+  fitWindow();
+}
+
+function historyButton(icon, title, action, active) {
+  const button = document.createElement('button');
+  button.className = 'btn btn--subtle btn--sm btn--icon' + (active ? ' is-pinned' : '');
+  button.dataset.icon = icon;
+  button.dataset.action = action;
+  button.title = title;
+  return button;
+}
+
+async function loadHistory() {
+  try {
+    historyEntries = await api.getHistory();
+  } catch (_) {
+    historyEntries = [];
+  }
+  renderHistory();
+}
+
+el('historySearch').addEventListener('input', renderHistory);
+
+el('historyList').addEventListener('click', async (event) => {
+  const item = event.target.closest('.history-item');
+  if (!item) return;
+  const id = item.dataset.id;
+  const entry = historyEntries.find((candidate) => candidate.id === id);
+  if (!entry) return;
+
+  const action = event.target.closest('[data-action]')?.dataset.action;
+
+  if (action === 'pin') {
+    historyEntries = await api.toggleHistoryPin(id);
+    renderHistory();
+    return;
+  }
+  if (action === 'delete') {
+    historyEntries = await api.deleteHistoryEntry(id);
+    renderHistory();
+    return;
+  }
+  if (action === 'copy') {
+    await api.setClipboard(entry.translated).catch(() => {});
+    return;
+  }
+
+  // Clicking the row itself reopens that translation.
+  src.value = entry.source;
+  out.textContent = entry.translated;
+  lastResult = {
+    text: entry.translated,
+    detectedSource: entry.from,
+    target: entry.to,
+    sourceText: entry.source
+  };
+  outputCard.hidden = false;
+  el('outDir').textContent = LANGUAGE_NAMES[entry.to] || entry.to;
+  updateBadge();
+  showView('main');
+});
+
+el('btnClearHistory').addEventListener('click', async () => {
+  historyEntries = await api.clearHistory();
+  renderHistory();
+});
+
+/* ------------------------------------------------------------------ usage */
+
+async function refreshUsage() {
+  const box = el('usage');
+  if (!el('deeplKey').value.trim()) {
+    box.hidden = true;
+    return;
+  }
+  try {
+    const usage = await api.getUsage();
+    const percent = usage.characterLimit ? (usage.characterCount / usage.characterLimit) * 100 : 0;
+    el('usageFill').style.width = Math.min(percent, 100) + '%';
+    el('usageFill').classList.toggle('is-high', percent >= 85);
+    el('usageText').textContent =
+      `${format(usage.characterCount)} / ${format(usage.characterLimit)} characters this month`;
+    box.hidden = false;
+  } catch (_) {
+    box.hidden = true;
+  }
+  fitWindow();
+}
+
+function format(value) {
+  if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+  if (value >= 1000) return Math.round(value / 1000) + 'k';
+  return String(value);
+}
+
+el('btnRefreshUsage').addEventListener('click', refreshUsage);
+
+el('btnRevealKey').addEventListener('click', (event) => {
+  const field = el('deeplKey');
+  const hidden = field.type === 'password';
+  field.type = hidden ? 'text' : 'password';
+  setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
+});
+
+/* ----------------------------------------------------- shortcut recorder */
+
+const RECORDERS = ['hotkey', 'selectionHotkey', 'replaceHotkey', 'ocrHotkey', 'swapHotkey'];
+const NAMED_KEYS = {
+  Space: 'Space', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', Delete: 'Delete',
+  Insert: 'Insert', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown',
+  ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right'
+};
+
+let recording = null;
+
+function keyFromEvent(event) {
+  const code = event.code || '';
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (/^F\d{1,2}$/.test(code)) return code;
+  return NAMED_KEYS[code] || null;
+}
+
+function stopRecording() {
+  if (!recording) return;
+  recording.classList.remove('is-recording');
+  recording.textContent = recording.dataset.value;
+  recording = null;
+  document.removeEventListener('keydown', onRecordKey, true);
+}
+
+function onRecordKey(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (event.key === 'Escape') {
+    stopRecording();
+    return;
+  }
+
+  const key = keyFromEvent(event);
+  if (!key) return;
+
+  const parts = [];
+  if (event.ctrlKey) parts.push('Ctrl');
+  if (event.altKey) parts.push('Alt');
+  if (event.shiftKey) parts.push('Shift');
+  if (event.metaKey) parts.push('Super');
+
+  // A bare letter would swallow that key system-wide.
+  if (!parts.length && !/^F\d{1,2}$/.test(key)) {
+    recording.textContent = 'Add Ctrl, Alt or Shift…';
+    return;
+  }
+
+  parts.push(key);
+  const target = recording;
+  target.dataset.value = parts.join('+');
+  stopRecording();
+}
+
+RECORDERS.forEach((id) => {
+  el(id).addEventListener('click', () => {
+    const button = el(id);
+    if (recording === button) {
+      stopRecording();
+      return;
+    }
+    stopRecording();
+    recording = button;
+    button.classList.add('is-recording');
+    button.textContent = 'Press a combination…';
+    document.addEventListener('keydown', onRecordKey, true);
+  });
+});
+
+function setRecorder(id, value) {
+  const button = el(id);
+  button.dataset.value = value;
+  button.textContent = value;
+}
+
+/* ------------------------------------------------------------- appearance */
+
 function appearanceFromControls() {
   return {
     opacity: parseFloat(el('opacity').value),
@@ -85,431 +542,207 @@ function appearanceFromControls() {
     font: el('font').value
   };
 }
-function appearanceToControls(a) {
-  el('opacity').value = a.opacity;
-  el('opacityVal').textContent = Math.round(a.opacity * 100) + '%';
-  el('colBg').value = a.bg;
-  el('colAccent').value = a.accent;
-  el('colText').value = a.text;
-  const sel = el('font');
-  if (![...sel.options].some(o => o.value === a.font)) {
-    const opt = document.createElement('option');
-    opt.value = a.font; opt.textContent = 'Custom';
-    sel.appendChild(opt);
+
+function appearanceToControls(appearance) {
+  el('opacity').value = appearance.opacity;
+  el('opacityVal').textContent = Math.round(appearance.opacity * 100) + '%';
+  el('colBg').value = appearance.bg;
+  el('colAccent').value = appearance.accent;
+  el('colText').value = appearance.text;
+
+  const select = el('font');
+  if (![...select.options].some((option) => option.value === appearance.font)) {
+    const custom = document.createElement('option');
+    custom.value = appearance.font;
+    custom.textContent = 'Custom';
+    select.append(custom);
   }
-  sel.value = a.font;
+  select.value = appearance.font;
 }
+
+function syncThemeSelect() {
+  const index = THEMES.findIndex(
+    (theme) =>
+      theme.bg === el('colBg').value.toLowerCase() &&
+      theme.accent === el('colAccent').value.toLowerCase() &&
+      theme.text === el('colText').value.toLowerCase()
+  );
+  el('themeSelect').value = index >= 0 ? String(index) : 'custom';
+}
+
 function previewAppearance() {
-  const a = appearanceFromControls();
-  el('opacityVal').textContent = Math.round(a.opacity * 100) + '%';
-  applyAppearance(a);
+  const appearance = appearanceFromControls();
+  el('opacityVal').textContent = Math.round(appearance.opacity * 100) + '%';
+  applyAppearance(appearance);
   syncThemeSelect();
 }
-['opacity', 'colBg', 'colAccent', 'colText', 'font'].forEach(id => {
+
+['opacity', 'colBg', 'colAccent', 'colText', 'font'].forEach((id) => {
   el(id).addEventListener('input', previewAppearance);
 });
 
-/* ---------- Theme presets (popular developer color schemes) ---------- */
-const THEMES = [
-  { name: 'Dracula (default)', bg: '#282a36', accent: '#bd93f9', text: '#f8f8f2' },
-  { name: 'Nord',             bg: '#2e3440', accent: '#88c0d0', text: '#eceff4' },
-  { name: 'One Dark',         bg: '#282c34', accent: '#61afef', text: '#abb2bf' },
-  { name: 'Tokyo Night',      bg: '#1a1b26', accent: '#7aa2f7', text: '#c0caf5' },
-  { name: 'Monokai',          bg: '#272822', accent: '#a6e22e', text: '#f8f8f2' },
-  { name: 'Gruvbox',          bg: '#282828', accent: '#fabd2f', text: '#ebdbb2' },
-  { name: 'Catppuccin',       bg: '#1e1e2e', accent: '#cba6f7', text: '#cdd6f4' },
-  { name: 'Night Owl',        bg: '#011627', accent: '#82aaff', text: '#d6deeb' },
-  { name: 'Solarized Dark',   bg: '#002b36', accent: '#268bd2', text: '#93a1a1' },
-  { name: 'Solarized Light',  bg: '#fdf6e3', accent: '#268bd2', text: '#586e75' },
-  { name: 'GitHub Light',     bg: '#ffffff', accent: '#0969da', text: '#1f2328' }
-];
-
-function syncThemeSelect() {
-  const sel = el('themeSelect');
-  if (!sel) return;
-  const bg = (el('colBg').value || '').toLowerCase();
-  const ac = (el('colAccent').value || '').toLowerCase();
-  const tx = (el('colText').value || '').toLowerCase();
-  const idx = THEMES.findIndex(t => t.bg === bg && t.accent === ac && t.text === tx);
-  sel.value = idx >= 0 ? String(idx) : 'custom';
-}
-
-function buildThemeSelect() {
-  const sel = el('themeSelect');
-  if (!sel) return;
-  sel.innerHTML = '';
-  THEMES.forEach((t, i) => {
-    const o = document.createElement('option');
-    o.value = String(i);
-    o.textContent = t.name;
-    sel.appendChild(o);
+(function buildThemeSelect() {
+  const select = el('themeSelect');
+  THEMES.forEach((theme, index) => {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = theme.name;
+    select.append(option);
   });
   const custom = document.createElement('option');
   custom.value = 'custom';
   custom.textContent = 'Custom';
-  sel.appendChild(custom);
-  sel.addEventListener('change', () => {
-    if (sel.value === 'custom') return;
-    const t = THEMES[+sel.value];
-    el('colBg').value = t.bg;
-    el('colAccent').value = t.accent;
-    el('colText').value = t.text;
+  select.append(custom);
+
+  select.addEventListener('change', () => {
+    if (select.value === 'custom') return;
+    const theme = THEMES[Number(select.value)];
+    el('colBg').value = theme.bg;
+    el('colAccent').value = theme.accent;
+    el('colText').value = theme.text;
     previewAppearance();
   });
-}
-buildThemeSelect();
+})();
 
-/* ---------- View switching ---------- */
-function showMain() {
-  settingsView.hidden = true;
-  appearanceView.hidden = true;
-  mainView.hidden = false;
-  src.focus();
-  src.select();
-  fitWindow();
-}
-function showSettings() {
-  mainView.hidden = true;
-  appearanceView.hidden = true;
-  settingsView.hidden = false;
-  el('settingsStatus').textContent = '';
-  el('hotkey').focus();
-  fitWindow();
-}
-function showAppearance() {
-  mainView.hidden = true;
-  settingsView.hidden = true;
-  appearanceView.hidden = false;
-  el('appearanceStatus').textContent = '';
-  appearanceToControls(settings.appearance);
-  applyAppearance(settings.appearance);
-  syncThemeSelect();
-  fitWindow();
-}
+/* -------------------------------------------------------------- settings  */
 
-/* ---------- Language direction ---------- */
-const PT_WORDS = [' o ', ' a ', ' os ', ' as ', ' um ', ' uma ', ' de ', ' do ', ' da ', ' dos ', ' das ', ' em ', ' no ', ' na ', ' que ', ' e ', ' ou ', ' mas ', ' com ', ' sem ', ' por ', ' para ', ' se ', ' eu ', ' voce ', ' ele ', ' ela ', ' nos ', ' eles ', ' meu ', ' minha ', ' seu ', ' sua ', ' isso ', ' isto ', ' aqui ', ' ali ', ' nao ', ' sim ', ' muito ', ' mais ', ' menos ', ' tudo ', ' nada ', ' bom ', ' boa ', ' dia ', ' noite ', ' obrigado ', ' obrigada ', ' ola ', ' porque ', ' quando ', ' onde ', ' como ', ' quem ', ' qual ', ' ser ', ' estar ', ' ter ', ' fazer ', ' vou ', ' vai ', ' esta ', ' sao ', ' foi ', ' tem ', ' quero ', ' preciso ', ' gosto ', ' casa ', ' agua ', ' hoje ', ' amanha '];
-const EN_WORDS = [' the ', ' an ', ' of ', ' to ', ' in ', ' on ', ' at ', ' is ', ' are ', ' was ', ' were ', ' be ', ' been ', ' and ', ' or ', ' but ', ' with ', ' without ', ' for ', ' if ', ' i ', ' you ', ' he ', ' she ', ' we ', ' they ', ' it ', ' my ', ' your ', ' his ', ' her ', ' this ', ' that ', ' these ', ' those ', ' here ', ' there ', ' no ', ' yes ', ' not ', ' very ', ' more ', ' less ', ' all ', ' nothing ', ' good ', ' day ', ' night ', ' thanks ', ' thank ', ' hello ', ' hi ', ' because ', ' when ', ' where ', ' how ', ' who ', ' which ', ' do ', ' does ', ' did ', ' have ', ' has ', ' had ', ' will ', ' would ', ' can ', ' want ', ' need ', ' like ', ' house ', ' water ', ' today ', ' tomorrow ', ' go ', ' going ', ' me ', ' please '];
-
-function detectDirection(text) {
-  const s = text.toLowerCase();
-  // Strong signal: Portuguese-only diacritics
-  if (/[ãõáàâêôçéíóú]/.test(s)) return 'pt-en';
-
-  const t = ' ' + s.replace(/[^a-z'\s]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
-  let pt = 0, en = 0;
-  PT_WORDS.forEach(w => { if (t.includes(w)) pt++; });
-  EN_WORDS.forEach(w => { if (t.includes(w)) en++; });
-
-  // Morphology: endings/clusters characteristic of each language
-  pt += (s.match(/ç|lh|nh|ção|ções|mente\b|ando\b|endo\b|inho\b|inha\b/g) || []).length;
-  en += (s.match(/\bth|wh|ght|ing\b|tion\b|ed\b|ly\b|'s\b|n't\b/g) || []).length;
-
-  if (pt !== en) return pt > en ? 'pt-en' : 'en-pt';
-  // Tie-breaker: w/y/k are far more common in English than Portuguese
-  return /[wyk]/.test(s) ? 'en-pt' : 'pt-en';
-}
-function currentDir() {
-  return forcedDir || detectDirection(src.value);
-}
-function updateBadge() {
-  const dir = forcedDir || (src.value.trim() ? detectDirection(src.value) : null);
-  dirBadge.textContent = dir ? (dir === 'pt-en' ? 'PT → EN' : 'EN → PT') : 'Auto ⇄';
-}
-function flipDirection() {
-  forcedDir = currentDir() === 'pt-en' ? 'en-pt' : 'pt-en';
-  updateBadge();
-  if (!outputCard.hidden && src.value.trim()) translate();
-}
-// Disabled: Auto-language detection on input
-// src.addEventListener('input', updateBadge);
-dirBadge.addEventListener('click', flipDirection);
-
-/* ---------- Hotkey matching (for the in-app swap shortcut) ---------- */
-function matchesHotkey(e, combo) {
+function matchesHotkey(event, combo) {
   if (!combo) return false;
-  const parts = combo.split('+').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const parts = combo.split('+').map((part) => part.trim().toLowerCase()).filter(Boolean);
   if (!parts.length) return false;
+
   const key = parts[parts.length - 1];
-  const mods = parts.slice(0, -1);
   const need = { alt: false, ctrl: false, shift: false, meta: false };
-  mods.forEach(m => {
-    if (m === 'alt' || m === 'option') need.alt = true;
-    else if (['ctrl', 'control', 'commandorcontrol', 'cmdorctrl'].includes(m)) need.ctrl = true;
-    else if (m === 'shift') need.shift = true;
-    else if (['meta', 'cmd', 'command', 'super', 'win'].includes(m)) need.meta = true;
+  parts.slice(0, -1).forEach((modifier) => {
+    if (modifier === 'alt' || modifier === 'option') need.alt = true;
+    else if (['ctrl', 'control', 'commandorcontrol', 'cmdorctrl'].includes(modifier)) need.ctrl = true;
+    else if (modifier === 'shift') need.shift = true;
+    else if (['meta', 'cmd', 'command', 'super', 'win'].includes(modifier)) need.meta = true;
   });
-  if (e.altKey !== need.alt || e.ctrlKey !== need.ctrl ||
-      e.shiftKey !== need.shift || e.metaKey !== need.meta) return false;
-  const k = e.key.toLowerCase();
-  if (key === 'space') return e.code === 'Space';
-  return k === key;
+
+  if (event.altKey !== need.alt || event.ctrlKey !== need.ctrl ||
+      event.shiftKey !== need.shift || event.metaKey !== need.meta) return false;
+
+  return (keyFromEvent(event) || '').toLowerCase() === key;
 }
 
-/* ---------- Translate ---------- */
-async function translate() {
-  const text = src.value.trim();
-  if (!text) {
-    status.classList.add('error');
-    status.textContent = 'Type something before translating.';
-    fitWindow();
-    return;
-  }
-  const dir = currentDir();
-  const langpair = dir === 'pt-en' ? 'pt|en' : 'en|pt';
-
-  status.classList.remove('error');
-  status.textContent = 'Translating…';
-  btnTranslate.disabled = true;
-
-  try {
-    const translated = await invoke('translate', { text, langpair });
-    out.textContent = translated;
-    outputCard.hidden = false;
-    outDir.textContent = dir === 'pt-en' ? 'English' : 'Portuguese';
-    lastResultDir = dir;
-    status.textContent = '';
-  } catch (err) {
-    const msg = String(err);
-    if (msg.includes('no_key')) {
-      status.textContent = 'Add your DeepL API key in Settings to translate.';
-    } else if (msg.includes('deepl_auth')) {
-      status.textContent = 'DeepL rejected the key. Check the DeepL key in Settings.';
-    } else if (msg.includes('limit:')) {
-      status.textContent = msg.replace(/^.*limit:\s*/, '');
-    } else if (msg.includes('network_error') || msg.includes('http_error')) {
-      const detail = msg.replace(/^.*(network_error|http_error):\s*/, '');
-      status.textContent = 'Connection to the translator failed. Detail: ' + detail;
-    } else if (msg.includes('api_error')) {
-      status.textContent = "Couldn't translate that text. Try rephrasing.";
-    } else {
-      status.textContent = 'Error: ' + msg;
-    }
-    status.classList.add('error');
-  } finally {
-    btnTranslate.disabled = false;
-    fitWindow();
-  }
-}
-
-btnTranslate.addEventListener('click', translate);
-src.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); translate(); }
-});
-
-/* ---------- Copy ---------- */
-btnCopy.addEventListener('click', async () => {
-  try {
-    await invoke('set_clipboard', { text: out.textContent });
-  } catch (_) {
-    try { await navigator.clipboard.writeText(out.textContent); } catch (_) {}
-  }
-  // Icon-only feedback: brief accent flash, no text.
-  btnCopy.classList.add('copied');
-  clearTimeout(btnCopy._t);
-  btnCopy._t = setTimeout(() => btnCopy.classList.remove('copied'), 900);
-});
-
-/* ---------- Text-to-speech (pronunciation) ---------- */
-let voicesCache = [];
-function loadVoices() {
-  try { voicesCache = window.speechSynthesis.getVoices() || []; } catch (_) {}
-}
-if ('speechSynthesis' in window) {
-  loadVoices();
-  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-}
-// Prefer modern, natural-sounding voices (Windows "Online (Natural)" voices,
-// macOS "Enhanced"/"Premium") over legacy robotic ones ("Desktop" SAPI5).
-function scoreVoice(v) {
-  const n = (v.name || '').toLowerCase();
-  let score = 0;
-  if (n.includes('natural')) score += 5;
-  if (n.includes('online')) score += 3;
-  if (n.includes('neural') || n.includes('enhanced') || n.includes('premium')) score += 3;
-  if (n.includes('desktop')) score -= 2;
-  return score;
-}
-function pickVoice(langBase) {
-  const matches = voicesCache.filter(vc => vc.lang && vc.lang.toLowerCase().startsWith(langBase));
-  if (!matches.length) return null;
-  return matches.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
-}
-function speak(text, dir, side) {
-  // side 'src' speaks in the source language, 'out' in the target language
-  if (!text || !('speechSynthesis' in window)) return;
-  const langBase = (side === 'out')
-    ? (dir === 'pt-en' ? 'en' : 'pt')
-    : (dir === 'pt-en' ? 'pt' : 'en');
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = langBase === 'pt' ? 'pt-BR' : 'en-US';
-  const v = pickVoice(langBase);
-  if (v) u.voice = v;
-  u.rate = 1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
-}
-if ('speechSynthesis' in window) {
-  el('btnSpeakSrc').addEventListener('click', () => speak(src.value.trim(), currentDir(), 'src'));
-  el('btnSpeakOut').addEventListener('click', () => speak(out.textContent.trim(), lastResultDir, 'out'));
-} else {
-  el('btnSpeakSrc').hidden = true;
-  el('btnSpeakOut').hidden = true;
-}
-
-/* ---------- Speech-to-text (voice input) ---------- */
-const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-let micOn = false;
-let micTimer = null;
-function setMic(on) {
-  micOn = on;
-  el('btnMic').classList.toggle('active', on);
-  if (!on) { clearTimeout(micTimer); }
-}
-// Force the mic off no matter what state the recognizer is in — used on the
-// second click and as a watchdog, so the button can never get stuck "on".
-function stopMic() {
-  clearTimeout(micTimer);
-  try { recognition.abort(); } catch (_) {}
-  try { recognition.stop(); } catch (_) {}
-  setMic(false);
-}
-if (SpeechRec) {
-  recognition = new SpeechRec();
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  recognition.continuous = false;
-  recognition.onstart = () => setMic(true);
-  recognition.onresult = (e) => {
-    const txt = e.results[0][0].transcript;
-    setMic(false);
-    src.value = txt;
-    updateBadge();
-    translate();
-  };
-  recognition.onerror = (e) => {
-    setMic(false);
-    status.classList.add('error');
-    status.textContent = 'Voice input unavailable (' + (e.error || 'error') + ').';
-    fitWindow();
-  };
-  recognition.onend = () => setMic(false);
-  el('btnMic').addEventListener('click', () => {
-    if (micOn) { stopMic(); return; }
-    recognition.lang = currentDir() === 'pt-en' ? 'pt-BR' : 'en-US';
-    try {
-      recognition.start();
-      setMic(true);
-      clearTimeout(micTimer);
-      micTimer = setTimeout(stopMic, 12000); // safety net: never stay on forever
-    } catch (_) { setMic(false); }
-  });
-} else {
-  el('btnMic').hidden = true;
-}
-
-/* ---------- Global keys ---------- */
-document.addEventListener('keydown', (e) => {
-  if (matchesHotkey(e, settings.swapHotkey)) {
-    e.preventDefault();
-    flipDirection();
-    return;
-  }
-  if (e.key === 'Escape') {
-    if (!settingsView.hidden || !appearanceView.hidden) { showMain(); return; }
-    invoke('hide_popup');
-  }
-});
-
-/* ---------- Menus ---------- */
-el('btnSettings').addEventListener('click', showSettings);
-el('btnAppearance').addEventListener('click', showAppearance);
-el('btnClose').addEventListener('click', () => invoke('hide_popup'));
-el('btnBackSettings').addEventListener('click', showMain);
-el('btnBackAppearance').addEventListener('click', () => {
-  // Discard unsaved preview
-  applyAppearance(settings.appearance);
-  showMain();
-});
-
-/* ---------- Load / save ---------- */
 async function loadSettings() {
-  settings = await invoke('get_settings');
+  settings = { ...DEFAULT_SETTINGS, ...(await api.getSettings()) };
   if (!settings.appearance) settings.appearance = { ...DEFAULT_APPEARANCE };
-  el('hotkey').value = settings.hotkey || 'Alt+R';
-  el('swapHotkey').value = settings.swapHotkey || 'Alt+E';
-  el('selectionHotkey').value = settings.selectionHotkey || 'Alt+T';
+
+  setRecorder('hotkey', settings.hotkey);
+  setRecorder('swapHotkey', settings.swapHotkey);
+  setRecorder('selectionHotkey', settings.selectionHotkey);
+  setRecorder('replaceHotkey', settings.replaceHotkey);
+  setRecorder('ocrHotkey', settings.ocrHotkey);
+
   el('deeplKey').value = settings.deeplKey || '';
-  el('autoTranslateClipboard').checked = settings.autoTranslateClipboard !== false;
-  try { el('autostart').checked = await invoke('get_autostart'); } catch (_) {}
+  el('autoTranslateClipboard').checked = settings.autoTranslateClipboard === true;
+  try { el('autostart').checked = await api.getAutostart(); } catch (_) {}
+
   appearanceToControls(settings.appearance);
   applyAppearance(settings.appearance);
-  dirBadge.title = `Click or press ${settings.swapHotkey || 'Alt+E'} to swap direction`;
+
+  try {
+    if (!(await api.ocrAvailable())) {
+      el('btnOcr').hidden = true;
+      el('ocrHotkeyField').hidden = true;
+    }
+  } catch (_) {}
+
+  updateBadge();
   fitWindow();
 }
 
-async function saveAll(statusEl) {
-  const newSettings = {
-    hotkey: el('hotkey').value.trim() || 'Alt+R',
-    swapHotkey: el('swapHotkey').value.trim() || 'Alt+E',
-    selectionHotkey: el('selectionHotkey').value.trim() || 'Alt+T',
+async function saveAll(statusNode) {
+  const updated = {
+    hotkey: el('hotkey').dataset.value,
+    swapHotkey: el('swapHotkey').dataset.value,
+    selectionHotkey: el('selectionHotkey').dataset.value,
+    replaceHotkey: el('replaceHotkey').dataset.value,
+    ocrHotkey: el('ocrHotkey').dataset.value,
     autoTranslateClipboard: el('autoTranslateClipboard').checked,
     deeplKey: el('deeplKey').value.trim(),
     appearance: appearanceFromControls()
   };
-  try {
-    await invoke('save_settings', { settings: newSettings });
-    try { await invoke('set_autostart', { enabled: el('autostart').checked }); } catch (_) {}
-    settings = newSettings;
-    applyAppearance(settings.appearance);
-    dirBadge.title = `Click or press ${settings.swapHotkey} to swap direction`;
 
-    // Apply the (possibly changed) global shortcuts immediately — no restart.
+  try {
+    await api.saveSettings(updated);
+    try { await api.setAutostart(el('autostart').checked); } catch (_) {}
+
+    settings = { ...settings, ...updated };
+    applyAppearance(settings.appearance);
+    updateBadge();
+
     try {
-      await invoke('update_shortcuts');
-    } catch (err) {
-      statusEl.classList.add('error');
-      statusEl.textContent = 'Saved, but a shortcut is invalid or already in use: ' + err;
-      return; // stay on this panel so the shortcut can be fixed
+      await api.updateShortcuts();
+    } catch (error) {
+      // Stay on the panel so the offending combo can be fixed.
+      fail(statusNode, 'Saved, but a shortcut could not be registered: ' + api.describeError(error));
+      return;
     }
 
-    // Saved cleanly → return to the main view.
-    showMain();
+    showView('main');
     toast(status, 'Saved!');
-  } catch (err) {
-    statusEl.classList.add('error');
-    statusEl.textContent = 'Error saving: ' + err;
+  } catch (error) {
+    fail(statusNode, 'Error saving: ' + api.describeError(error));
   }
 }
 
 el('btnSaveSettings').addEventListener('click', () => saveAll(el('settingsStatus')));
 el('btnSaveAppearance').addEventListener('click', () => saveAll(el('appearanceStatus')));
 
-/* ---------- Reset everything to defaults (keeps the DeepL key) ---------- */
 el('btnResetAll').addEventListener('click', () => {
-  el('hotkey').value = 'Alt+R';
-  el('swapHotkey').value = 'Alt+E';
-  el('selectionHotkey').value = 'Alt+T';
-  el('autoTranslateClipboard').checked = true;
-  el('autostart').checked = true; // default: start with Windows
+  setRecorder('hotkey', DEFAULT_SETTINGS.hotkey);
+  setRecorder('swapHotkey', DEFAULT_SETTINGS.swapHotkey);
+  setRecorder('selectionHotkey', DEFAULT_SETTINGS.selectionHotkey);
+  setRecorder('replaceHotkey', DEFAULT_SETTINGS.replaceHotkey);
+  setRecorder('ocrHotkey', DEFAULT_SETTINGS.ocrHotkey);
+  el('autoTranslateClipboard').checked = false;
+  el('autostart').checked = true;
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);
-  // The DeepL key field is intentionally left untouched.
+  // The DeepL key is deliberately left alone.
   saveAll(el('settingsStatus'));
 });
 
-/* ---------- Home button ---------- */
-el('btnHome').addEventListener('click', showMain);
+/* ------------------------------------------------------------- navigation */
 
-/* ---------- Popup shown ---------- */
-listen('popup-shown', (event) => {
-  showMain();
-  src.focus();
-  src.select();
-  fitWindow();
+el('btnHistory').addEventListener('click', () => showView(VIEWS.history.hidden ? 'history' : 'main'));
+el('btnSettings').addEventListener('click', () => showView(VIEWS.settings.hidden ? 'settings' : 'main'));
+el('btnAppearance').addEventListener('click', () => showView(VIEWS.appearance.hidden ? 'appearance' : 'main'));
+el('btnClose').addEventListener('click', () => api.hidePopup());
+el('btnBackHistory').addEventListener('click', () => showView('main'));
+el('btnBackSettings').addEventListener('click', () => showView('main'));
+el('btnBackAppearance').addEventListener('click', () => {
+  applyAppearance(settings.appearance);
+  showView('main');
 });
 
-listen('open-settings', () => showSettings());
+document.addEventListener('keydown', (event) => {
+  if (recording) return;
+
+  if (matchesHotkey(event, settings.swapHotkey)) {
+    event.preventDefault();
+    cycleDirection();
+    return;
+  }
+  if (event.key === 'Escape') {
+    if (VIEWS.main.hidden) showView('main');
+    else api.hidePopup();
+  }
+});
+
+api.listen('popup-shown', (event) => {
+  showView('main');
+  const clipboard = (event.payload && event.payload.clipboard) || '';
+  if (clipboard.trim()) {
+    src.value = clipboard;
+    lastResult = null;
+    translate();
+  }
+});
+
+api.listen('open-view', (event) => showView(String(event.payload || 'main')));
 
 loadSettings();
