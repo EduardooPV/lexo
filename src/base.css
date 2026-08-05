@@ -1,0 +1,86 @@
+:root{
+  --parchment: #282a36;
+  --gold:      #bd93f9;
+  --ink:       #f8f8f2;
+  --ui-font:   'Segoe UI', system-ui, sans-serif;
+  --app-opacity: 1;
+
+  --red: #ff79c6;
+  --gray: #6272a4;
+  --on-accent: #ffffff;
+  --mono-font: 'Consolas', ui-monospace, monospace;
+
+  --surface: color-mix(in srgb, var(--parchment), var(--ink) 7%);
+  --surface-strong: color-mix(in srgb, var(--parchment), var(--ink) 12%);
+  --border: color-mix(in srgb, var(--parchment), var(--ink) 20%);
+  --hover: color-mix(in srgb, var(--ink), transparent 92%);
+  --placeholder: color-mix(in srgb, var(--ink), transparent 55%);
+  --shadow: rgba(0,0,0,0.35);
+
+  --radius: 8px;
+  --ring: 0 0 0 3px color-mix(in srgb, var(--gold), transparent 82%);
+}
+
+*{ box-sizing: border-box; }
+
+.btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--ui-font);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s, filter .15s;
+}
+.btn:focus-visible{ outline: none; box-shadow: var(--ring); }
+.btn:disabled{ opacity: .5; cursor: default; }
+
+.btn .icon{ width: 16px; height: 16px; display: block; flex: 0 0 auto; }
+
+.btn--primary{ background: var(--gold); color: var(--on-accent); }
+.btn--primary:hover:not(:disabled){ filter: brightness(.93); }
+
+.btn--ghost{ border-color: var(--border); color: var(--ink); }
+.btn--ghost:hover:not(:disabled){ background: var(--hover); }
+
+.btn--subtle{ color: var(--gray); }
+.btn--subtle:hover:not(:disabled){ background: var(--hover); color: var(--ink); }
+
+.btn--danger{ border-color: var(--border); color: var(--gray); }
+.btn--danger:hover:not(:disabled){
+  color: var(--red);
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red), transparent 92%);
+}
+
+.btn--icon{ width: 38px; padding: 0; }
+.btn--sm{ height: 30px; padding: 0 12px; font-size: 12px; }
+.btn--sm.btn--icon{ width: 30px; padding: 0; }
+.btn--sm .icon{ width: 14px; height: 14px; }
+.btn--xs{ height: 24px; padding: 0 8px; font-size: 11px; }
+.btn--xs.btn--icon{ width: 24px; padding: 0; }
+.btn--xs .icon{ width: 13px; height: 13px; }
+.btn--block{ width: 100%; }
+
+.btn.is-active{ background: var(--red); border-color: var(--red); color: #fff; }
+.btn.is-success{ color: var(--gold); }
+
+.status{
+  min-height: 14px;
+  margin-top: 8px;
+  font-family: var(--mono-font);
+  font-size: 11px;
+  color: var(--gray);
+  text-align: center;
+}
+.status.error{ color: var(--red); }

@@ -1,0 +1,21 @@
+{
+  "name": "tradutor",
+  "version": "1.0.0",
+  "description": "Global-hotkey PT ⇄ EN desktop translator (Tauri)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EduardooPV/lexo.git"
+  },
+  "homepage": "https://github.com/EduardooPV/lexo#readme",
+  "bugs": "https://github.com/EduardooPV/lexo/issues",
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

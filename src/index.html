@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lexo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <div class="titlebar" data-tauri-drag-region>
+    <div class="titlebar-title" data-tauri-drag-region>Lexo</div>
+    <div class="titlebar-actions">
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnHistory" data-icon="history" title="History"></button>
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnAppearance" data-icon="palette" title="Appearance"></button>
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnSettings" data-icon="settings" title="Settings"></button>
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnClose" data-icon="close" title="Close (Esc)"></button>
+    </div>
+  </div>
+
+  <main id="mainView">
+    <div class="input-head">
+      <button class="lang-badge" id="dirBadge" title="Click to force a direction">
+        <span data-icon="swap"></span><span id="dirLabel">Auto</span>
+      </button>
+    </div>
+
+    <textarea id="src" placeholder="Type or paste text in Portuguese or English..." rows="3" autofocus></textarea>
+
+    <div class="io-tools">
+      <button class="btn btn--icon" id="btnMic" data-icon="mic" title="Voice input"></button>
+      <button class="btn btn--icon" id="btnSpeakSrc" data-icon="volume" title="Listen to the text"></button>
+      <button class="btn btn--icon" id="btnOcr" data-icon="scan" title="Translate a region of the screen"></button>
+      <button class="btn btn--primary" id="btnTranslate">Translate</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="output-card" id="outputCard" hidden>
+      <div class="output-head">
+        <span class="lang-badge lang-badge--static" id="outDir">Translation</span>
+        <div class="output-actions">
+          <button class="btn btn--subtle btn--sm btn--icon" id="btnSpeakOut" data-icon="volume" title="Listen to the translation"></button>
+          <button class="btn btn--subtle btn--sm btn--icon" id="btnCopy" data-icon="copy" title="Copy"></button>
+        </div>
+      </div>
+      <div class="translation" id="out"></div>
+    </div>
+  </main>
+
+  <section id="historyView" hidden>
+    <h2 class="panel-title">History</h2>
+
+    <div class="history-search">
+      <span data-icon="search"></span>
+      <input type="search" id="historySearch" placeholder="Search translations..." spellcheck="false" autocomplete="off">
+    </div>
+
+    <div class="history-list" id="historyList"></div>
+
+    <div class="panel-actions">
+      <button class="btn btn--danger" id="btnClearHistory" title="Pinned entries are kept">
+        <span data-icon="trash"></span>Clear
+      </button>
+      <button class="btn btn--ghost" id="btnBackHistory">
+        <span data-icon="back"></span>Back
+      </button>
+    </div>
+  </section>
+
+  <section id="settingsView" hidden>
+    <h2 class="panel-title">Settings</h2>
+
+    <label class="field">
+      <span class="field-label">DeepL API key (required)</span>
+      <div class="input-row">
+        <input type="password" id="deeplKey" placeholder="xxxxxxxx-xxxx-...-xxxx:fx" spellcheck="false" autocomplete="off">
+        <button type="button" class="btn btn--ghost btn--icon" id="btnRevealKey" data-icon="eye" title="Show the key"></button>
+      </div>
+      <span class="field-hint">Get a free key (500k chars/month) at deepl.com/pro-api.</span>
+    </label>
+
+    <div class="usage" id="usage" hidden>
+      <div class="usage-bar"><div class="usage-fill" id="usageFill"></div></div>
+      <div class="usage-text">
+        <span id="usageText">—</span>
+        <button type="button" class="btn btn--subtle btn--sm btn--icon" id="btnRefreshUsage" data-icon="refresh" title="Refresh usage"></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Open the translator</span>
+      <button type="button" class="btn recorder" id="hotkey" data-shortcut></button>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Translate the selection</span>
+      <button type="button" class="btn recorder" id="selectionHotkey" data-shortcut></button>
+      <span class="field-hint">Select text anywhere and the translation pops up at the cursor.</span>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Translate and replace</span>
+      <button type="button" class="btn recorder" id="replaceHotkey" data-shortcut></button>
+      <span class="field-hint">Overwrites the selected text with its translation, in place.</span>
+    </div>
+
+    <div class="field" id="ocrHotkeyField">
+      <span class="field-label">Translate a region of the screen</span>
+      <button type="button" class="btn recorder" id="ocrHotkey" data-shortcut></button>
+      <span class="field-hint">Drag a box over anything on screen — images and video included — and Windows reads the text.</span>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Swap direction</span>
+      <button type="button" class="btn recorder" id="swapHotkey" data-shortcut></button>
+      <span class="field-hint">Works while the translator is focused.</span>
+    </div>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="autostart">
+      <span class="field-label">Start with the system (run in background)</span>
+    </label>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="autoTranslateClipboard">
+      <span class="field-label">Auto-translate the clipboard when opening</span>
+    </label>
+
+    <button class="btn btn--danger btn--block" id="btnResetAll" type="button" title="Your DeepL key is kept">
+      <span data-icon="reset"></span>Reset to defaults
+    </button>
+
+    <div class="panel-actions">
+      <button class="btn btn--primary" id="btnSaveSettings">Save</button>
+      <button class="btn btn--ghost" id="btnBackSettings">
+        <span data-icon="back"></span>Back
+      </button>
+    </div>
+    <div class="status" id="settingsStatus"></div>
+  </section>
+
+  <section id="appearanceView" hidden>
+    <h2 class="panel-title">Appearance</h2>
+
+    <label class="field">
+      <span class="field-label">Opacity</span>
+      <div class="range-row">
+        <input type="range" id="opacity" min="0.4" max="1" step="0.01">
+        <output id="opacityVal">100%</output>
+      </div>
+    </label>
+
+    <div class="field">
+      <span class="field-label">Colors</span>
+      <div class="color-row">
+        <label class="color-item"><input type="color" id="colBg"><span>Background</span></label>
+        <label class="color-item"><input type="color" id="colAccent"><span>Accent</span></label>
+        <label class="color-item"><input type="color" id="colText"><span>Text</span></label>
+      </div>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Font</span>
+      <select id="font">
+        <option value="'Segoe UI', system-ui, sans-serif">Segoe UI (default)</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        <option value="'Calibri', sans-serif">Calibri</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+        <option value="'Consolas', monospace">Consolas</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Theme</span>
+      <select id="themeSelect"></select>
+    </label>
+
+    <div class="panel-actions">
+      <button class="btn btn--primary" id="btnSaveAppearance">Save</button>
+      <button class="btn btn--ghost" id="btnBackAppearance">
+        <span data-icon="back"></span>Back
+      </button>
+    </div>
+    <div class="status" id="appearanceStatus"></div>
+  </section>
+
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

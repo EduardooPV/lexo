@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Translation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="mini.css">
+</head>
+<body>
+<div id="bubble" data-tauri-drag-region="deep">
+
+  <div class="block">
+    <div class="block-head">
+      <span class="lang" id="srcLang">—</span>
+      <div class="block-actions">
+        <button class="btn btn--subtle btn--xs btn--icon" id="speakSrc" data-icon="volume" title="Listen"></button>
+        <button class="btn btn--subtle btn--xs btn--icon" id="close" data-icon="close" title="Close (Esc)"></button>
+      </div>
+    </div>
+    <div class="txt" id="srcText" data-tauri-drag-region="false"></div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="block">
+    <div class="block-head">
+      <span class="lang" id="outLang">—</span>
+      <div class="block-actions">
+        <button class="btn btn--subtle btn--xs btn--icon" id="speakOut" data-icon="volume" title="Listen"></button>
+        <button class="btn btn--subtle btn--xs btn--icon" id="copyOut" data-icon="copy" title="Copy the translation"></button>
+      </div>
+    </div>
+    <div class="txt" id="outText" data-tauri-drag-region="false"></div>
+  </div>
+
+  <div class="status" id="miniStatus" data-tauri-drag-region="false"></div>
+</div>
+<script type="module" src="mini.js"></script>
+</body>
+</html>
