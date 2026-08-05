@@ -30,7 +30,7 @@
 
 ## Download
 
-📥 **[Download the latest release](https://github.com/EduardooPV/lexo/releases/latest)** — Windows (`.exe`/`.msi`), macOS (`.dmg`), and Linux (`.AppImage`/`.deb`/`.rpm`).
+📥 **[Download the latest release](https://github.com/EduardooPV/lexo/releases/latest)** — Windows, macOS and Linux.
 
 All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,000 characters/month, no cost). Translation runs in the Rust backend — your key never touches the browser. No telemetry.
 
@@ -70,19 +70,6 @@ Every shortcut is remappable in Settings (you press the combination, not type it
 - **Pause shortcuts** from the tray, to avoid conflicts with games and other apps
 - **Text-to-speech** and **voice input** in both languages
 - **Customizable theme** — colors, opacity, and font
-
----
-
-## Platform notes
-
-Lexo is developed and tested on **Windows**, where everything works, including OCR (native, never reaches macOS/Linux). On macOS and Linux, translation, history, shortcuts, and selection translation all work, with two caveats:
-
-- **macOS** asks for **Accessibility** permission the first time you use Alt+T/Alt+Shift+T (needed to simulate Ctrl+C/Ctrl+V) — grant it under *System Settings › Privacy & Security*.
-- **Linux**: global shortcuts and simulated keystrokes rely on X11; under a native **Wayland** session they may not respond (untested on any distro).
-
-macOS and Linux installers are **unsigned**: on macOS, right-click the app → **Open** the first time (or run `xattr -cr` on it); on Linux, `chmod +x` the `.AppImage`.
-
----
 
 ## Development
 
