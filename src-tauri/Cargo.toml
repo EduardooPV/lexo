@@ -1,12 +1,12 @@
 [package]
-name = "tradutor"
-version = "1.0.2"
+name = "lexo"
+version = "1.0.1"
 description = "Global-hotkey PT ⇄ EN desktop translator"
 authors = ["EduardooPV"]
 edition = "2021"
 
 [lib]
-name = "tradutor_lib"
+name = "lexo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

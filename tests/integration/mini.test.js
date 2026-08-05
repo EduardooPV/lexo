@@ -9,6 +9,7 @@ describe('bubble content', () => {
 
     expect(el('srcText').textContent).toBe('preciso revisar isso');
     expect(el('outText').textContent).toBe('translated: preciso revisar isso');
+    expect(el('srcLang').textContent).toBe('Portuguese');
     expect(el('outLang').textContent).toBe('English');
     expect(el('miniStatus').textContent).toBe('');
   });
