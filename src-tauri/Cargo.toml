@@ -1,6 +1,6 @@
 [package]
 name = "lexo"
-version = "1.0.2"
+version = "1.0.3"
 description = "Global-hotkey PT ⇄ EN desktop translator"
 authors = ["EduardooPV"]
 edition = "2021"
