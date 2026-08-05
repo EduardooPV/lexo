@@ -11,6 +11,7 @@ function bodyOf(relativePath) {
 
 export async function flush(rounds = 4) {
   for (let i = 0; i < rounds; i += 1) {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
