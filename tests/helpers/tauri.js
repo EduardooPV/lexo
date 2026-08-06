@@ -56,6 +56,8 @@ export function createTauriMock(overrides = {}) {
     delete_history_entry: () => [],
     toggle_history_pin: () => [],
     get_usage: () => ({ characterCount: 412345, characterLimit: 500000 }),
+    verify_deepl_key: () => ({ characterCount: 0, characterLimit: 500000 }),
+    open_deepl_signup: () => null,
     translate: ({ text, target }) => ({
       text: 'translated: ' + text,
       detectedSource: 'PT',
@@ -63,7 +65,9 @@ export function createTauriMock(overrides = {}) {
       cached: false
     }),
     check_for_update: () => null,
+    pending_update: () => null,
     install_update: () => null,
+    app_version: () => '9.9.9',
     set_clipboard: () => null,
     resize_window: () => null,
     resize_mini: () => null,

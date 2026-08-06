@@ -1,6 +1,6 @@
 [package]
 name = "lexo"
-version = "1.0.3"
+version = "1.0.4"
 description = "Global-hotkey PT ⇄ EN desktop translator"
 authors = ["EduardooPV"]
 edition = "2021"
@@ -18,6 +18,7 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", features = ["json"] }

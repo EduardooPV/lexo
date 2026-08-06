@@ -24,16 +24,26 @@ jobs:
       tag: ${{ steps.compute.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Compute next patch version
         id: compute
         run: |
-          version=$(node -p "require('./package.json').version")
-          IFS='.' read -r major minor patch <<< "$version"
+          tagged=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 | sed 's/^v//')
+          packaged=$(node -p "require('./package.json').version")
+          base=$(printf '%s\n%s\n' "$tagged" "$packaged" | grep . | sort -V | tail -n 1)
+          IFS='.' read -r major minor patch <<< "$base"
           new="$major.$minor.$((patch + 1))"
+
+          if git rev-parse "v$new" >/dev/null 2>&1; then
+            echo "::error::v$new is already tagged — refusing to overwrite a published release"
+            exit 1
+          fi
+
           echo "version=$new" >> "$GITHUB_OUTPUT"
           echo "tag=v$new" >> "$GITHUB_OUTPUT"
-          echo "New version: v$new"
+          echo "Latest tag: ${tagged:-none} | package.json: $packaged | releasing: v$new"
 
   build:
     needs: version

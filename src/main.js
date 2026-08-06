@@ -13,6 +13,7 @@ const dirLabel = el('dirLabel');
 
 const VIEWS = {
   main: el('mainView'),
+  welcome: el('welcomeView'),
   history: el('historyView'),
   shortcuts: el('shortcutsView'),
   settings: el('settingsView'),
@@ -34,6 +35,8 @@ let settings = { ...DEFAULT_SETTINGS };
 let forcedTarget = null;
 let lastResult = null;
 let historyEntries = [];
+let updateDismissed = false;
+let skippedWelcome = false;
 
 hydrate();
 
@@ -55,14 +58,23 @@ function fail(node, text) {
   node.textContent = text;
 }
 
-function showView(name) {
-  Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== name; });
+function needsWelcome() {
+  return !skippedWelcome && !String(settings.deeplKey || '').trim();
+}
 
-  if (name === 'main') {
+function showView(name) {
+  const view = name === 'main' && needsWelcome() ? 'welcome' : name;
+  Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== view; });
+
+  if (view === 'main') {
     src.focus();
     src.select();
   }
-  if (name === 'history') {
+  if (view === 'welcome') {
+    el('welcomeStatus').classList.remove('error');
+    el('welcomeStatus').textContent = '';
+  }
+  if (view === 'history') {
     el('historySearch').value = '';
     loadHistory();
   }
@@ -71,10 +83,11 @@ function showView(name) {
     el('shortcutsStatus').textContent = '';
   }
   if (name === 'settings') {
+  if (view === 'settings') {
     el('settingsStatus').textContent = '';
     refreshUsage();
   }
-  if (name === 'appearance') {
+  if (view === 'appearance') {
     el('appearanceStatus').textContent = '';
     appearanceToControls(settings.appearance);
     applyAppearance(settings.appearance);
@@ -609,6 +622,7 @@ async function loadSettings() {
   el('deeplKey').value = settings.deeplKey || '';
   el('autoTranslateClipboard').checked = settings.autoTranslateClipboard === true;
   try { el('autostart').checked = await api.getAutostart(); } catch (_) {}
+  try { el('appVersion').textContent = `Lexo ${await api.appVersion()}`; } catch (_) {}
 
   appearanceToControls(settings.appearance);
   applyAppearance(settings.appearance);
@@ -621,6 +635,7 @@ async function loadSettings() {
   } catch (_) {}
 
   updateBadge();
+  if (needsWelcome()) showView('welcome');
   fitWindow();
 }
 
@@ -675,6 +690,67 @@ el('btnResetAll').addEventListener('click', () => {
   saveAll(el('settingsStatus'));
 });
 
+async function connectDeepl() {
+  const statusNode = el('welcomeStatus');
+  const key = el('welcomeKey').value.trim();
+  if (!key) {
+    fail(statusNode, 'Paste the API key from your DeepL account first.');
+    fitWindow();
+    return;
+  }
+
+  const button = el('btnConnectDeepl');
+  button.disabled = true;
+  statusNode.classList.remove('error');
+  statusNode.textContent = 'Checking the key…';
+  fitWindow();
+
+  try {
+    await api.verifyDeeplKey(key);
+    await api.saveSettings({ ...settings, deeplKey: key });
+    settings = { ...settings, deeplKey: key };
+    el('deeplKey').value = key;
+    showView('main');
+    toast(status, 'Connected to DeepL.');
+  } catch (error) {
+    fail(statusNode, api.describeError(error));
+    fitWindow();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+el('btnConnectDeepl').addEventListener('click', connectDeepl);
+
+el('welcomeKey').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    connectDeepl();
+  }
+});
+
+el('btnDeeplAccount').addEventListener('click', async () => {
+  try {
+    await api.openDeeplSignup();
+  } catch (error) {
+    fail(el('welcomeStatus'), api.describeError(error));
+    fitWindow();
+  }
+});
+
+el('btnRevealWelcomeKey').addEventListener('click', (event) => {
+  const field = el('welcomeKey');
+  const hidden = field.type === 'password';
+  field.type = hidden ? 'text' : 'password';
+  setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
+});
+
+el('btnSkipWelcome').addEventListener('click', () => {
+  skippedWelcome = true;
+  showView('main');
+});
+
+el('btnHome').addEventListener('click', () => showView('main'));
 el('btnHistory').addEventListener('click', () => showView(VIEWS.history.hidden ? 'history' : 'main'));
 el('btnShortcuts').addEventListener('click', () => showView(VIEWS.shortcuts.hidden ? 'shortcuts' : 'main'));
 el('btnSettings').addEventListener('click', () => showView(VIEWS.settings.hidden ? 'settings' : 'main'));
@@ -697,15 +773,14 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key === 'Escape') {
-    if (VIEWS.main.hidden) showView('main');
+    if (VIEWS.main.hidden && VIEWS.welcome.hidden) showView('main');
     else api.hidePopup();
   }
 });
 
 function showUpdateBanner(update) {
-  if (!update || !update.version) return;
-  el('updateText').textContent = 'Update available';
-  el('updateBanner').title = `Version ${update.version}`;
+  if (updateDismissed || !update || !update.version) return;
+  el('updateText').textContent = `Update available · ${update.version}`;
   el('updateBanner').hidden = false;
   fitWindow();
 }
@@ -715,7 +790,17 @@ function hideUpdateBanner() {
   fitWindow();
 }
 
-el('btnDismissUpdate').addEventListener('click', hideUpdateBanner);
+async function syncUpdateBanner() {
+  if (updateDismissed) return;
+  try {
+    showUpdateBanner(await api.pendingUpdate());
+  } catch (_) {}
+}
+
+el('btnDismissUpdate').addEventListener('click', () => {
+  updateDismissed = true;
+  hideUpdateBanner();
+});
 
 el('btnInstallUpdate').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -727,6 +812,7 @@ el('btnInstallUpdate').addEventListener('click', async (event) => {
     button.disabled = false;
     button.textContent = 'Update';
     if (String(error).includes('updater_none')) {
+      updateDismissed = true;
       hideUpdateBanner();
       return;
     }
@@ -738,6 +824,7 @@ el('btnInstallUpdate').addEventListener('click', async (event) => {
 api.listen('update-available', (event) => showUpdateBanner(event.payload));
 
 api.listen('popup-shown', (event) => {
+  syncUpdateBanner();
   showView('main');
   const clipboard = (event.payload && event.payload.clipboard) || '';
   if (clipboard.trim()) {
@@ -750,3 +837,4 @@ api.listen('popup-shown', (event) => {
 api.listen('open-view', (event) => showView(String(event.payload || 'main')));
 
 loadSettings();
+syncUpdateBanner();

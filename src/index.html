@@ -13,6 +13,7 @@
   <div class="titlebar" data-tauri-drag-region>
     <div class="titlebar-title" data-tauri-drag-region>Lexo</div>
     <div class="titlebar-actions">
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnHome" data-icon="home" title="Translator"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnHistory" data-icon="history" title="History"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnAppearance" data-icon="palette" title="Appearance"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnShortcuts" data-icon="keyboard" title="Shortcuts"></button>
@@ -57,6 +58,34 @@
       <div class="translation" id="out"></div>
     </div>
   </main>
+
+  <section id="welcomeView" hidden>
+    <h2 class="panel-title">Welcome to Lexo</h2>
+
+    <p class="welcome-lead">
+      Lexo translates through your own DeepL account, so nothing you type passes
+      through anyone else. The free plan covers 500,000 characters a month.
+    </p>
+
+    <button class="btn btn--primary btn--block" id="btnDeeplAccount">
+      <span data-icon="external"></span>Create a free DeepL account
+    </button>
+
+    <label class="field">
+      <span class="field-label">Paste your API key</span>
+      <div class="input-row">
+        <input type="password" id="welcomeKey" placeholder="xxxxxxxx-xxxx-...-xxxx:fx" spellcheck="false" autocomplete="off">
+        <button type="button" class="btn btn--ghost btn--icon" id="btnRevealWelcomeKey" data-icon="eye" title="Show the key"></button>
+      </div>
+      <span class="field-hint">DeepL lists it under Account › API keys. It never leaves this machine.</span>
+    </label>
+
+    <div class="panel-actions">
+      <button class="btn btn--primary" id="btnConnectDeepl">Connect</button>
+      <button class="btn btn--ghost" id="btnSkipWelcome">Later</button>
+    </div>
+    <div class="status" id="welcomeStatus"></div>
+  </section>
 
   <section id="historyView" hidden>
     <h2 class="panel-title">History</h2>
@@ -162,6 +191,8 @@
       </button>
     </div>
     <div class="status" id="shortcutsStatus"></div>
+    <div class="status" id="settingsStatus"></div>
+    <div class="app-version" id="appVersion"></div>
   </section>
 
   <section id="appearanceView" hidden>
