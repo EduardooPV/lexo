@@ -284,6 +284,26 @@ describe('shortcut recorder', () => {
 });
 
 describe('settings', () => {
+  it('tells you which version you are running, so an update can be verified', async () => {
+    await mountPopup();
+    el('btnSettings').click();
+    await flush();
+
+    expect(el('appVersion').textContent).toBe('Lexo 9.9.9');
+  });
+
+  it('says nothing rather than lying about the version when the backend cannot answer', async () => {
+    await mountPopup({
+      app_version: () => {
+        throw 'boom';
+      }
+    });
+    el('btnSettings').click();
+    await flush();
+
+    expect(el('appVersion').textContent).toBe('');
+  });
+
   it('saves every field and re-registers the shortcuts', async () => {
     const mock = await mountPopup();
     el('btnSettings').click();

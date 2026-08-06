@@ -33,6 +33,7 @@ let settings = { ...DEFAULT_SETTINGS };
 let forcedTarget = null;
 let lastResult = null;
 let historyEntries = [];
+let updateDismissed = false;
 
 hydrate();
 
@@ -604,6 +605,7 @@ async function loadSettings() {
   el('deeplKey').value = settings.deeplKey || '';
   el('autoTranslateClipboard').checked = settings.autoTranslateClipboard === true;
   try { el('autostart').checked = await api.getAutostart(); } catch (_) {}
+  try { el('appVersion').textContent = `Lexo ${await api.appVersion()}`; } catch (_) {}
 
   appearanceToControls(settings.appearance);
   applyAppearance(settings.appearance);
@@ -695,9 +697,8 @@ document.addEventListener('keydown', (event) => {
 });
 
 function showUpdateBanner(update) {
-  if (!update || !update.version) return;
-  el('updateText').textContent = 'Update available';
-  el('updateBanner').title = `Version ${update.version}`;
+  if (updateDismissed || !update || !update.version) return;
+  el('updateText').textContent = `Update available · ${update.version}`;
   el('updateBanner').hidden = false;
   fitWindow();
 }
@@ -707,7 +708,17 @@ function hideUpdateBanner() {
   fitWindow();
 }
 
-el('btnDismissUpdate').addEventListener('click', hideUpdateBanner);
+async function syncUpdateBanner() {
+  if (updateDismissed) return;
+  try {
+    showUpdateBanner(await api.pendingUpdate());
+  } catch (_) {}
+}
+
+el('btnDismissUpdate').addEventListener('click', () => {
+  updateDismissed = true;
+  hideUpdateBanner();
+});
 
 el('btnInstallUpdate').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -719,6 +730,7 @@ el('btnInstallUpdate').addEventListener('click', async (event) => {
     button.disabled = false;
     button.textContent = 'Update';
     if (String(error).includes('updater_none')) {
+      updateDismissed = true;
       hideUpdateBanner();
       return;
     }
@@ -730,6 +742,7 @@ el('btnInstallUpdate').addEventListener('click', async (event) => {
 api.listen('update-available', (event) => showUpdateBanner(event.payload));
 
 api.listen('popup-shown', (event) => {
+  syncUpdateBanner();
   showView('main');
   const clipboard = (event.payload && event.payload.clipboard) || '';
   if (clipboard.trim()) {
@@ -742,3 +755,4 @@ api.listen('popup-shown', (event) => {
 api.listen('open-view', (event) => showView(String(event.payload || 'main')));
 
 loadSettings();
+syncUpdateBanner();

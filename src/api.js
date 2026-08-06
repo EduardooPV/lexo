@@ -26,7 +26,9 @@ export const setAutostart = (enabled) => invoke('set_autostart', { enabled });
 export const getAutostart = () => invoke('get_autostart');
 
 export const checkForUpdate = () => invoke('check_for_update');
+export const pendingUpdate = () => invoke('pending_update');
 export const installUpdate = () => invoke('install_update');
+export const appVersion = () => invoke('app_version');
 
 export const ocrAvailable = () => invoke('ocr_available');
 export const ocrRegion = (rect) => invoke('ocr_region', rect);
