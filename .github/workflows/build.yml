@@ -17,7 +17,6 @@ jobs:
     uses: ./.github/workflows/test.yml
 
   version:
-    needs: test
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.compute.outputs.version }}
@@ -46,12 +45,11 @@ jobs:
           echo "Latest tag: ${tagged:-none} | package.json: $packaged | releasing: v$new"
 
   build:
-    needs: version
+    needs: [test, version]
     permissions:
       contents: write
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include:
           - platform: windows-latest
@@ -92,9 +90,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Apply release version
         shell: bash
@@ -126,6 +125,7 @@ jobs:
           releaseName: "Lexo ${{ needs.version.outputs.version }}"
           releaseDraft: false
           prerelease: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
       - name: Upload installer as workflow artifact
@@ -142,9 +142,26 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: ignore
 
+  updater:
+    name: Publish updater manifest
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose latest.json from every signed bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: node .github/scripts/compose-updater-json.mjs
+
   finalize:
     name: Commit version bump
-    needs: [version, build]
+    needs: [version, build, updater]
     runs-on: ubuntu-latest
     permissions:
       contents: write

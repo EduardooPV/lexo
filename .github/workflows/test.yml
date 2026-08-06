@@ -33,6 +33,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "src-tauri -> target"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Formatting
         working-directory: src-tauri
