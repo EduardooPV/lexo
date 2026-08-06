@@ -23,6 +23,8 @@
 
 *{ box-sizing: border-box; }
 
+[hidden]{ display: none !important; }
+
 .btn{
   display: inline-flex;
   align-items: center;
