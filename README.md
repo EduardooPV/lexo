@@ -95,6 +95,37 @@ npm run build
 
 Backend checks (inside `src-tauri/`): `cargo check`, `cargo clippy`, `cargo fmt`.
 
+### Project structure
+
+The Rust backend is split by responsibility — `lib.rs` only declares the modules and
+wires everything together in `run()`. Each module keeps its own commands and its own
+tests, in a `#[cfg(test)] mod tests` at the bottom of the file.
+
+```
+src-tauri/src/
+  lib.rs         plugins, command list, tray and window events
+  settings.rs    Settings, defaults, schema migration
+  paths.rs       config directory, JSON read/write
+  state.rs       history, cache and pending update, in memory
+  history.rs     entries, eviction, pinning
+  cache.rs       local translation cache
+  language.rs    PT/EN word lists and direction guessing
+  deepl.rs       every DeepL call, quota, key verification
+  windows.rs     showing, hiding and clamping the three windows
+  selection.rs   reading and replacing the selection in other apps
+  capture.rs     OCR region flow  ·  ocr.rs  native Windows OCR
+  updater.rs     app version, update check and install
+  shortcuts.rs   global hotkeys and pausing them
+  autostart.rs   start with the system
+  tray.rs        tray menu
+
+src/             vanilla ES modules, no bundler
+  index.html  main.js      the popup: translator, history, shortcuts, settings
+  mini.html   mini.js      the bubble for a selection or an OCR grab
+  overlay.html overlay.js  the full-screen region picker
+  api.js                   every invoke wrapper and the error-to-text mapping
+```
+
 **Prerequisites (Windows, the primary dev platform):** Rust (MSVC toolchain), the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), and Node 16+. For macOS/Linux, follow Tauri's own [prerequisites](https://tauri.app/start/prerequisites/) for your platform — see the exact packages used in CI in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 `.github/workflows/build.yml` builds Windows, macOS, and Linux under the same release tag on every push to `main`, and **bumps the version automatically** — only after all three platforms build successfully.
