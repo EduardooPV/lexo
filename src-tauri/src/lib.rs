@@ -1195,6 +1195,21 @@ async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> 
 }
 
 #[tauri::command]
+fn pending_update(app: AppHandle) -> Option<UpdateInfo> {
+    let state = app.state::<AppState>();
+    let pending = state.pending_update.lock().ok()?;
+    pending.as_ref().map(|update| UpdateInfo {
+        version: update.version.clone(),
+        notes: update.body.clone(),
+    })
+}
+
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[tauri::command]
 async fn install_update(app: AppHandle) -> Result<(), String> {
     let taken = {
         let state = app.state::<AppState>();
@@ -1434,6 +1449,8 @@ pub fn run() {
             start_region_capture,
             cancel_region_capture,
             check_for_update,
+            pending_update,
+            app_version,
             install_update
         ])
         .setup(|app| {

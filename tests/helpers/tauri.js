@@ -65,7 +65,9 @@ export function createTauriMock(overrides = {}) {
       cached: false
     }),
     check_for_update: () => null,
+    pending_update: () => null,
     install_update: () => null,
+    app_version: () => '9.9.9',
     set_clipboard: () => null,
     resize_window: () => null,
     resize_mini: () => null,
