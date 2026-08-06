@@ -13,6 +13,7 @@ const dirLabel = el('dirLabel');
 
 const VIEWS = {
   main: el('mainView'),
+  welcome: el('welcomeView'),
   history: el('historyView'),
   settings: el('settingsView'),
   appearance: el('appearanceView')
@@ -34,6 +35,7 @@ let forcedTarget = null;
 let lastResult = null;
 let historyEntries = [];
 let updateDismissed = false;
+let skippedWelcome = false;
 
 hydrate();
 
@@ -55,22 +57,31 @@ function fail(node, text) {
   node.textContent = text;
 }
 
-function showView(name) {
-  Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== name; });
+function needsWelcome() {
+  return !skippedWelcome && !String(settings.deeplKey || '').trim();
+}
 
-  if (name === 'main') {
+function showView(name) {
+  const view = name === 'main' && needsWelcome() ? 'welcome' : name;
+  Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== view; });
+
+  if (view === 'main') {
     src.focus();
     src.select();
   }
-  if (name === 'history') {
+  if (view === 'welcome') {
+    el('welcomeStatus').classList.remove('error');
+    el('welcomeStatus').textContent = '';
+  }
+  if (view === 'history') {
     el('historySearch').value = '';
     loadHistory();
   }
-  if (name === 'settings') {
+  if (view === 'settings') {
     el('settingsStatus').textContent = '';
     refreshUsage();
   }
-  if (name === 'appearance') {
+  if (view === 'appearance') {
     el('appearanceStatus').textContent = '';
     appearanceToControls(settings.appearance);
     applyAppearance(settings.appearance);
@@ -618,6 +629,7 @@ async function loadSettings() {
   } catch (_) {}
 
   updateBadge();
+  if (needsWelcome()) showView('welcome');
   fitWindow();
 }
 
@@ -671,6 +683,67 @@ el('btnResetAll').addEventListener('click', () => {
   saveAll(el('settingsStatus'));
 });
 
+async function connectDeepl() {
+  const statusNode = el('welcomeStatus');
+  const key = el('welcomeKey').value.trim();
+  if (!key) {
+    fail(statusNode, 'Paste the API key from your DeepL account first.');
+    fitWindow();
+    return;
+  }
+
+  const button = el('btnConnectDeepl');
+  button.disabled = true;
+  statusNode.classList.remove('error');
+  statusNode.textContent = 'Checking the key…';
+  fitWindow();
+
+  try {
+    await api.verifyDeeplKey(key);
+    await api.saveSettings({ ...settings, deeplKey: key });
+    settings = { ...settings, deeplKey: key };
+    el('deeplKey').value = key;
+    showView('main');
+    toast(status, 'Connected to DeepL.');
+  } catch (error) {
+    fail(statusNode, api.describeError(error));
+    fitWindow();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+el('btnConnectDeepl').addEventListener('click', connectDeepl);
+
+el('welcomeKey').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    connectDeepl();
+  }
+});
+
+el('btnDeeplAccount').addEventListener('click', async () => {
+  try {
+    await api.openDeeplSignup();
+  } catch (error) {
+    fail(el('welcomeStatus'), api.describeError(error));
+    fitWindow();
+  }
+});
+
+el('btnRevealWelcomeKey').addEventListener('click', (event) => {
+  const field = el('welcomeKey');
+  const hidden = field.type === 'password';
+  field.type = hidden ? 'text' : 'password';
+  setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
+});
+
+el('btnSkipWelcome').addEventListener('click', () => {
+  skippedWelcome = true;
+  showView('main');
+});
+
+el('btnHome').addEventListener('click', () => showView('main'));
 el('btnHistory').addEventListener('click', () => showView(VIEWS.history.hidden ? 'history' : 'main'));
 el('btnSettings').addEventListener('click', () => showView(VIEWS.settings.hidden ? 'settings' : 'main'));
 el('btnAppearance').addEventListener('click', () => showView(VIEWS.appearance.hidden ? 'appearance' : 'main'));
@@ -691,7 +764,7 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key === 'Escape') {
-    if (VIEWS.main.hidden) showView('main');
+    if (VIEWS.main.hidden && VIEWS.welcome.hidden) showView('main');
     else api.hidePopup();
   }
 });

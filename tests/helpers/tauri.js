@@ -56,6 +56,8 @@ export function createTauriMock(overrides = {}) {
     delete_history_entry: () => [],
     toggle_history_pin: () => [],
     get_usage: () => ({ characterCount: 412345, characterLimit: 500000 }),
+    verify_deepl_key: () => ({ characterCount: 0, characterLimit: 500000 }),
+    open_deepl_signup: () => null,
     translate: ({ text, target }) => ({
       text: 'translated: ' + text,
       detectedSource: 'PT',

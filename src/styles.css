@@ -127,6 +127,9 @@ textarea::placeholder{ color: var(--placeholder); font-style: italic; }
 
 .panel-title{ margin: 0 0 14px; font-size: 18px; font-weight: 600; }
 
+.welcome-lead{ margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--gray); }
+#welcomeView #btnDeeplAccount{ margin-bottom: 18px; }
+
 .field{ display: flex; flex-direction: column; margin-bottom: 14px; }
 .field-inline{ flex-direction: row; align-items: center; gap: 10px; }
 .field-label{ margin-bottom: 6px; font-size: 13px; font-weight: 600; }
