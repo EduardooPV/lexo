@@ -35,7 +35,7 @@ All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,0
 ## Usage
 
 1. Download and install (link above)
-2. Open with **Alt+R** → **Settings** → paste your DeepL key → **Save**
+2. Open with **Alt+R** → the welcome screen links to DeepL, paste the key → **Connect**
 3. Type or paste text → **Enter** to translate
 4. In any app, select text and press **Alt+T**
 

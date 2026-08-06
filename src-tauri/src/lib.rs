@@ -584,6 +584,8 @@ struct Usage {
     character_limit: u64,
 }
 
+const DEEPL_SIGNUP_URL: &str = "https://www.deepl.com/pro-api";
+
 fn deepl_endpoint(key: &str, path: &str) -> String {
     let host = if key.ends_with(":fx") {
         "https://api-free.deepl.com"
@@ -707,15 +709,14 @@ async fn translate(
     translate_text(&app, text, target).await
 }
 
-#[tauri::command]
-async fn get_usage(app: AppHandle) -> Result<Usage, String> {
-    let key = load_settings(&app).deepl_key.trim().to_string();
+async fn fetch_usage(key: &str) -> Result<Usage, String> {
+    let key = key.trim();
     if key.is_empty() {
         return Err("no_key: Add your DeepL API key in Settings.".to_string());
     }
 
     let response = reqwest::Client::new()
-        .get(deepl_endpoint(&key, "usage"))
+        .get(deepl_endpoint(key, "usage"))
         .timeout(Duration::from_secs(8))
         .header("Authorization", format!("DeepL-Auth-Key {key}"))
         .send()
@@ -733,6 +734,24 @@ async fn get_usage(app: AppHandle) -> Result<Usage, String> {
         character_count: data["character_count"].as_u64().unwrap_or(0),
         character_limit: data["character_limit"].as_u64().unwrap_or(0),
     })
+}
+
+#[tauri::command]
+async fn get_usage(app: AppHandle) -> Result<Usage, String> {
+    fetch_usage(&load_settings(&app).deepl_key).await
+}
+
+#[tauri::command]
+async fn verify_deepl_key(key: String) -> Result<Usage, String> {
+    fetch_usage(&key).await
+}
+
+#[tauri::command]
+fn open_deepl_signup(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(DEEPL_SIGNUP_URL, None::<&str>)
+        .map_err(|e| format!("open_error: {e}"))
 }
 
 #[derive(Clone, Serialize)]
@@ -1354,6 +1373,7 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
@@ -1396,6 +1416,8 @@ pub fn run() {
             set_shortcuts_paused,
             translate,
             get_usage,
+            verify_deepl_key,
+            open_deepl_signup,
             get_history,
             clear_history,
             delete_history_entry,

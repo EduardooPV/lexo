@@ -367,6 +367,18 @@ describe('navigation', () => {
     expect(mock.callsFor('hide_popup')).toHaveLength(1);
   });
 
+  it('returns to the translator from any panel through the home button', async () => {
+    await mountPopup();
+    el('btnSettings').click();
+    await flush();
+    expect(el('settingsView').hidden).toBe(false);
+
+    el('btnHome').click();
+    await flush();
+    expect(el('mainView').hidden).toBe(false);
+    expect(el('settingsView').hidden).toBe(true);
+  });
+
   it('opens the view the tray asked for', async () => {
     const mock = await mountPopup();
     await mock.emit('open-view', 'settings');

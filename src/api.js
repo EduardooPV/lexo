@@ -10,6 +10,8 @@ export const setShortcutsPaused = (paused) => invoke('set_shortcuts_paused', { p
 
 export const translate = (text, target = null) => invoke('translate', { text, target });
 export const getUsage = () => invoke('get_usage');
+export const verifyDeeplKey = (key) => invoke('verify_deepl_key', { key });
+export const openDeeplSignup = () => invoke('open_deepl_signup');
 
 export const getHistory = () => invoke('get_history');
 export const clearHistory = () => invoke('clear_history');
@@ -41,6 +43,7 @@ const MESSAGES = [
   ['ocr_unsupported', 'Screen OCR is only available on Windows.'],
   ['capture_error', 'Could not read that screen region.'],
   ['ocr_error', 'Could not read the text in that region.'],
+  ['open_error', 'Could not open the browser. Go to deepl.com/pro-api manually.'],
   ['updater_none', 'You are already on the latest version.'],
   ['updater_error', 'Could not reach the update server. Try again later.'],
   ['api_error', "Couldn't translate that text. Try rephrasing."],
