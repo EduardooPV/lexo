@@ -39,7 +39,7 @@ All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,0
 3. Type or paste text → **Enter** to translate
 4. In any app, select text and press **Alt+T**
 
-Every shortcut is remappable in Settings (you press the combination, not type it) and applies as soon as you save.
+Every shortcut is remappable in the **Shortcuts** panel (you press the combination, not type it) and applies as soon as you save.
 
 ## Preview
 

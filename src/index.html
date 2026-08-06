@@ -15,6 +15,7 @@
     <div class="titlebar-actions">
       <button class="btn btn--subtle btn--sm btn--icon" id="btnHistory" data-icon="history" title="History"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnAppearance" data-icon="palette" title="Appearance"></button>
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnShortcuts" data-icon="keyboard" title="Shortcuts"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnSettings" data-icon="settings" title="Settings"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnClose" data-icon="close" title="Close (Esc)"></button>
     </div>
@@ -97,6 +98,34 @@
       </div>
     </div>
 
+    <label class="field field-inline">
+      <input type="checkbox" id="autostart">
+      <span class="field-label">Start with the system (run in background)</span>
+    </label>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="autoTranslateClipboard">
+      <span class="field-label">Auto-translate the clipboard when opening</span>
+    </label>
+
+    <button class="btn btn--danger btn--block" id="btnResetAll" type="button" title="Your DeepL key is kept">
+      <span data-icon="reset"></span>Reset to defaults
+    </button>
+
+    <div class="panel-actions">
+      <button class="btn btn--primary" id="btnSaveSettings">Save</button>
+      <button class="btn btn--ghost" id="btnBackSettings">
+        <span data-icon="back"></span>Back
+      </button>
+    </div>
+    <div class="status" id="settingsStatus"></div>
+  </section>
+
+  <section id="shortcutsView" hidden>
+    <h2 class="panel-title">Shortcuts</h2>
+
+    <p class="panel-lead">Click a combination to record a new one. They apply as soon as you save.</p>
+
     <div class="field">
       <span class="field-label">Open the translator</span>
       <button type="button" class="btn recorder" id="hotkey" data-shortcut></button>
@@ -126,27 +155,13 @@
       <span class="field-hint">Works while the translator is focused.</span>
     </div>
 
-    <label class="field field-inline">
-      <input type="checkbox" id="autostart">
-      <span class="field-label">Start with the system (run in background)</span>
-    </label>
-
-    <label class="field field-inline">
-      <input type="checkbox" id="autoTranslateClipboard">
-      <span class="field-label">Auto-translate the clipboard when opening</span>
-    </label>
-
-    <button class="btn btn--danger btn--block" id="btnResetAll" type="button" title="Your DeepL key is kept">
-      <span data-icon="reset"></span>Reset to defaults
-    </button>
-
     <div class="panel-actions">
-      <button class="btn btn--primary" id="btnSaveSettings">Save</button>
-      <button class="btn btn--ghost" id="btnBackSettings">
+      <button class="btn btn--primary" id="btnSaveShortcuts">Save</button>
+      <button class="btn btn--ghost" id="btnBackShortcuts">
         <span data-icon="back"></span>Back
       </button>
     </div>
-    <div class="status" id="settingsStatus"></div>
+    <div class="status" id="shortcutsStatus"></div>
   </section>
 
   <section id="appearanceView" hidden>
