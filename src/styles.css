@@ -57,7 +57,7 @@ main, section{ padding: 12px 16px 16px; }
 .update-banner .btn--primary{ flex: 0 0 auto; }
 
 .app-version{
-  margin-top: 12px;
+  margin-top: 2px;
   text-align: center;
   font-size: 10.5px;
   letter-spacing: .02em;

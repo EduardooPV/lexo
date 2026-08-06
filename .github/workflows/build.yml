@@ -7,6 +7,11 @@ on:
       - "README.md"
       - "CLAUDE.md"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to release, e.g. 2.0.0. Leave empty to bump the patch."
+        required: false
+        type: string
 
 concurrency:
   group: release-build
@@ -17,7 +22,6 @@ jobs:
     uses: ./.github/workflows/test.yml
 
   version:
-    needs: test
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.compute.outputs.version }}
@@ -27,14 +31,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Compute next patch version
+      - name: Compute the version to release
         id: compute
+        env:
+          REQUESTED: ${{ inputs.version }}
         run: |
           tagged=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1 | sed 's/^v//')
           packaged=$(node -p "require('./package.json').version")
-          base=$(printf '%s\n%s\n' "$tagged" "$packaged" | grep . | sort -V | tail -n 1)
-          IFS='.' read -r major minor patch <<< "$base"
-          new="$major.$minor.$((patch + 1))"
+
+          if [ -n "$REQUESTED" ]; then
+            if ! printf '%s' "$REQUESTED" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::'$REQUESTED' is not an x.y.z version"
+              exit 1
+            fi
+            new="$REQUESTED"
+          else
+            base=$(printf '%s\n%s\n' "$tagged" "$packaged" | grep . | sort -V | tail -n 1)
+            IFS='.' read -r major minor patch <<< "$base"
+            new="$major.$minor.$((patch + 1))"
+          fi
 
           if git rev-parse "v$new" >/dev/null 2>&1; then
             echo "::error::v$new is already tagged — refusing to overwrite a published release"
@@ -46,12 +61,11 @@ jobs:
           echo "Latest tag: ${tagged:-none} | package.json: $packaged | releasing: v$new"
 
   build:
-    needs: version
+    needs: [test, version]
     permissions:
       contents: write
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include:
           - platform: windows-latest
@@ -92,9 +106,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Apply release version
         shell: bash
@@ -126,6 +141,7 @@ jobs:
           releaseName: "Lexo ${{ needs.version.outputs.version }}"
           releaseDraft: false
           prerelease: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
       - name: Upload installer as workflow artifact
@@ -142,9 +158,26 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: ignore
 
+  updater:
+    name: Publish updater manifest
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose latest.json from every signed bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: node .github/scripts/compose-updater-json.mjs
+
   finalize:
     name: Commit version bump
-    needs: [version, build]
+    needs: [version, build, updater]
     runs-on: ubuntu-latest
     permissions:
       contents: write
