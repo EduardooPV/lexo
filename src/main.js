@@ -78,11 +78,10 @@ function showView(name) {
     el('historySearch').value = '';
     loadHistory();
   }
-  if (name === 'shortcuts') {
+  if (view === 'shortcuts') {
     el('shortcutsStatus').classList.remove('error');
     el('shortcutsStatus').textContent = '';
   }
-  if (name === 'settings') {
   if (view === 'settings') {
     el('settingsStatus').textContent = '';
     refreshUsage();
