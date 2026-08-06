@@ -283,6 +283,62 @@ describe('shortcut recorder', () => {
   });
 });
 
+describe('shortcuts panel', () => {
+  it('keeps every recorder in its own panel, out of the crowded settings one', async () => {
+    await mountPopup();
+    const recorders = ['hotkey', 'selectionHotkey', 'replaceHotkey', 'ocrHotkey', 'swapHotkey'];
+
+    recorders.forEach((id) => {
+      expect(el('shortcutsView').contains(el(id))).toBe(true);
+      expect(el('settingsView').contains(el(id))).toBe(false);
+    });
+  });
+
+  it('opens and closes from its own title-bar button', async () => {
+    await mountPopup();
+
+    el('btnShortcuts').click();
+    await flush();
+    expect(el('shortcutsView').hidden).toBe(false);
+    expect(el('settingsView').hidden).toBe(true);
+
+    el('btnShortcuts').click();
+    await flush();
+    expect(el('mainView').hidden).toBe(false);
+  });
+
+  it('saves a re-recorded combination and re-registers it right away', async () => {
+    const mock = await mountPopup();
+    el('btnShortcuts').click();
+    await flush();
+
+    el('selectionHotkey').click();
+    press(document, { code: 'KeyJ', key: 'j', ctrlKey: true, altKey: true });
+    el('btnSaveShortcuts').click();
+    await flush();
+
+    const saved = mock.callsFor('save_settings')[0].args.settings;
+    expect(saved.selectionHotkey).toBe('Ctrl+Alt+J');
+    expect(mock.callsFor('update_shortcuts')).toHaveLength(1);
+    expect(el('mainView').hidden).toBe(false);
+  });
+
+  it('keeps you on the panel when the new combination will not register', async () => {
+    await mountPopup({
+      update_shortcuts: () => {
+        throw 'Open: could not register Alt+R (already in use)';
+      }
+    });
+    el('btnShortcuts').click();
+    await flush();
+    el('btnSaveShortcuts').click();
+    await flush();
+
+    expect(el('shortcutsView').hidden).toBe(false);
+    expect(el('shortcutsStatus').classList.contains('error')).toBe(true);
+  });
+});
+
 describe('settings', () => {
   it('tells you which version you are running, so an update can be verified', async () => {
     await mountPopup();

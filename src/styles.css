@@ -126,6 +126,7 @@ textarea::placeholder{ color: var(--placeholder); font-style: italic; }
 .translation{ font-size: 19px; line-height: 1.4; word-break: break-word; }
 
 .panel-title{ margin: 0 0 14px; font-size: 18px; font-weight: 600; }
+.panel-lead{ margin: -6px 0 16px; font-size: 12px; line-height: 1.45; color: var(--gray); }
 
 .welcome-lead{ margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--gray); }
 #welcomeView #btnDeeplAccount{ margin-bottom: 18px; }

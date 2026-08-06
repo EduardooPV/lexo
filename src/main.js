@@ -15,6 +15,7 @@ const VIEWS = {
   main: el('mainView'),
   welcome: el('welcomeView'),
   history: el('historyView'),
+  shortcuts: el('shortcutsView'),
   settings: el('settingsView'),
   appearance: el('appearanceView')
 };
@@ -77,6 +78,11 @@ function showView(name) {
     el('historySearch').value = '';
     loadHistory();
   }
+  if (name === 'shortcuts') {
+    el('shortcutsStatus').classList.remove('error');
+    el('shortcutsStatus').textContent = '';
+  }
+  if (name === 'settings') {
   if (view === 'settings') {
     el('settingsStatus').textContent = '';
     refreshUsage();
@@ -668,6 +674,7 @@ async function saveAll(statusNode) {
 }
 
 el('btnSaveSettings').addEventListener('click', () => saveAll(el('settingsStatus')));
+el('btnSaveShortcuts').addEventListener('click', () => saveAll(el('shortcutsStatus')));
 el('btnSaveAppearance').addEventListener('click', () => saveAll(el('appearanceStatus')));
 
 el('btnResetAll').addEventListener('click', () => {
@@ -745,10 +752,12 @@ el('btnSkipWelcome').addEventListener('click', () => {
 
 el('btnHome').addEventListener('click', () => showView('main'));
 el('btnHistory').addEventListener('click', () => showView(VIEWS.history.hidden ? 'history' : 'main'));
+el('btnShortcuts').addEventListener('click', () => showView(VIEWS.shortcuts.hidden ? 'shortcuts' : 'main'));
 el('btnSettings').addEventListener('click', () => showView(VIEWS.settings.hidden ? 'settings' : 'main'));
 el('btnAppearance').addEventListener('click', () => showView(VIEWS.appearance.hidden ? 'appearance' : 'main'));
 el('btnClose').addEventListener('click', () => api.hidePopup());
 el('btnBackHistory').addEventListener('click', () => showView('main'));
+el('btnBackShortcuts').addEventListener('click', () => showView('main'));
 el('btnBackSettings').addEventListener('click', () => showView('main'));
 el('btnBackAppearance').addEventListener('click', () => {
   applyAppearance(settings.appearance);
