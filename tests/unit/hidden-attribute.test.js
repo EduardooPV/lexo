@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const read = (name) => readFileSync(join(process.cwd(), 'src', name), 'utf8');
 
 const MARKUP = ['index.html', 'mini.html', 'overlay.html'];
-const STYLESHEETS = ['base.css', 'styles.css', 'mini.css', 'overlay.css'];
+const STYLESHEETS = ['styles/base.css', 'styles/popup.css', 'styles/mini.css', 'styles/overlay.css'];
 
 function classesOnHiddenElements() {
   const found = new Set();
@@ -38,9 +38,9 @@ function displayRulesFor(className) {
 
 describe('the hidden attribute', () => {
   it('is enforced by a rule strong enough to beat any author display', () => {
-    const guard = read('base.css').match(/\[hidden\]\s*\{([^}]*)\}/);
+    const guard = read('styles/base.css').match(/\[hidden\]\s*\{([^}]*)\}/);
 
-    expect(guard, 'base.css must declare a [hidden] rule').not.toBeNull();
+    expect(guard, 'styles/base.css must declare a [hidden] rule').not.toBeNull();
     expect(guard[1].replace(/\s+/g, '')).toContain('display:none!important');
   });
 

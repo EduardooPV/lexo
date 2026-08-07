@@ -1,6 +1,7 @@
-import * as api from './api.js';
-import { hydrate, setIcon } from './icons.js';
-import { applyAppearance } from './theme.js';
+import * as api from './shared/api.js';
+import { hydrate, setIcon } from './shared/icons.js';
+import { applyAppearance } from './shared/theme.js';
+import { isSpeechAvailable, loadVoices, speak } from './shared/speech.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -36,34 +37,7 @@ function reset() {
   lastResult = null;
 }
 
-let voices = [];
-function loadVoices() {
-  try { voices = window.speechSynthesis.getVoices() || []; } catch (_) { voices = []; }
-}
-
-function scoreVoice(voice) {
-  const name = (voice.name || '').toLowerCase();
-  let score = 0;
-  if (name.includes('natural')) score += 5;
-  if (name.includes('online')) score += 3;
-  if (name.includes('neural') || name.includes('enhanced') || name.includes('premium')) score += 3;
-  if (name.includes('desktop')) score -= 2;
-  return score;
-}
-
-function speak(text, language) {
-  if (!text || !('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = language === 'pt' ? 'pt-BR' : 'en-US';
-  const match = voices
-    .filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(language))
-    .sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
-  if (match) utterance.voice = match;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-}
-
-if ('speechSynthesis' in window) {
+if (isSpeechAvailable()) {
   loadVoices();
   window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
 } else {

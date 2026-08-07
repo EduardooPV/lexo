@@ -120,11 +120,28 @@ src-tauri/src/
   tray.rs        tray menu
 
 src/             vanilla ES modules, no bundler
-  index.html  main.js      the popup: translator, history, shortcuts, settings
-  mini.html   mini.js      the bubble for a selection or an OCR grab
-  overlay.html overlay.js  the full-screen region picker
-  api.js                   every invoke wrapper and the error-to-text mapping
+  index.html  mini.html  overlay.html   the three windows
+  styles/        base.css plus one sheet per window
+  scripts/
+    shared/      api.js  icons.js  theme.js  speech.js
+    popup/
+      index.js       wiring — every listener lives here
+      state.js       what the popup remembers while it is open
+      dom.js         the elements it reads and writes
+      views.js       switching panels, resizing, status messages
+      translate.js   translating and the direction badge
+      history.js     rendering and loading the list
+      settings.js    loading, saving, the quota meter
+      recorder.js    recording a hotkey and matching one
+      appearance.js  colours, opacity, font, themes
+      welcome.js     connecting a DeepL account
+      updater.js     the update banner
+      voice.js       speech-to-text
+    mini.js  overlay.js
 ```
+
+`shared/api.js` is the single place that turns a backend error prefix (`no_key:`,
+`deepl_auth:`, `limit:` …) into human text — add new ones there, not in the callers.
 
 **Prerequisites (Windows, the primary dev platform):** Rust (MSVC toolchain), the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), and Node 16+. For macOS/Linux, follow Tauri's own [prerequisites](https://tauri.app/start/prerequisites/) for your platform — see the exact packages used in CI in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 

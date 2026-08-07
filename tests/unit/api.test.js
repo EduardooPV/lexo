@@ -3,7 +3,7 @@ import { installTauriMock } from '../helpers/tauri.js';
 
 const importApi = async () => {
   vi.resetModules();
-  return import('../../src/api.js');
+  return import('../../src/scripts/shared/api.js');
 };
 
 describe('describeError', () => {

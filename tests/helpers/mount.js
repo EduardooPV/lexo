@@ -20,7 +20,7 @@ export async function mountPopup(overrides = {}) {
   document.body.innerHTML = bodyOf('../../src/index.html');
   const mock = installTauriMock(overrides);
   vi.resetModules();
-  await import('../../src/main.js');
+  await import('../../src/scripts/popup/index.js');
   await flush();
   return mock;
 }
@@ -29,7 +29,7 @@ export async function mountMini(overrides = {}) {
   document.body.innerHTML = bodyOf('../../src/mini.html');
   const mock = installTauriMock(overrides);
   vi.resetModules();
-  await import('../../src/mini.js');
+  await import('../../src/scripts/mini.js');
   await flush();
   return mock;
 }
@@ -38,7 +38,7 @@ export async function mountOverlay(overrides = {}) {
   document.body.innerHTML = bodyOf('../../src/overlay.html');
   const mock = installTauriMock(overrides);
   vi.resetModules();
-  await import('../../src/overlay.js');
+  await import('../../src/scripts/overlay.js');
   await flush(1);
   return mock;
 }
