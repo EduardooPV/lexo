@@ -1,6 +1,6 @@
 {
   "name": "lexo",
-  "version": "1.0.9",
+  "version": "2.0.0",
   "description": "Global-hotkey PT ⇄ EN desktop translator (Tauri)",
   "license": "MIT",
   "repository": {
