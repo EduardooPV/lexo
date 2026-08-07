@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { hydrate, iconMarkup, setIcon } from '../../src/icons.js';
+import { hydrate, iconMarkup, setIcon } from '../../src/scripts/shared/icons.js';
 
 beforeEach(() => {
   document.body.innerHTML = '';

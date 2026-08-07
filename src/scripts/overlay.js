@@ -1,4 +1,4 @@
-import * as api from './api.js';
+import * as api from './shared/api.js';
 
 const backdrop = document.getElementById('backdrop');
 const selection = document.getElementById('selection');

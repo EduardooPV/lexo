@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Lexo</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="base.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/popup.css">
 </head>
 <body>
 <div id="app">
@@ -158,30 +158,30 @@
 
     <div class="field">
       <span class="field-label">Open the translator</span>
-      <button type="button" class="btn recorder" id="hotkey" data-shortcut></button>
+      <button type="button" class="btn recorder" id="hotkey"></button>
     </div>
 
     <div class="field">
       <span class="field-label">Translate the selection</span>
-      <button type="button" class="btn recorder" id="selectionHotkey" data-shortcut></button>
+      <button type="button" class="btn recorder" id="selectionHotkey"></button>
       <span class="field-hint">Select text anywhere and the translation pops up at the cursor.</span>
     </div>
 
     <div class="field">
       <span class="field-label">Translate and replace</span>
-      <button type="button" class="btn recorder" id="replaceHotkey" data-shortcut></button>
+      <button type="button" class="btn recorder" id="replaceHotkey"></button>
       <span class="field-hint">Overwrites the selected text with its translation, in place.</span>
     </div>
 
     <div class="field" id="ocrHotkeyField">
       <span class="field-label">Translate a region of the screen</span>
-      <button type="button" class="btn recorder" id="ocrHotkey" data-shortcut></button>
+      <button type="button" class="btn recorder" id="ocrHotkey"></button>
       <span class="field-hint">Drag a box over anything on screen — images and video included — and Windows reads the text.</span>
     </div>
 
     <div class="field">
       <span class="field-label">Swap direction</span>
-      <button type="button" class="btn recorder" id="swapHotkey" data-shortcut></button>
+      <button type="button" class="btn recorder" id="swapHotkey"></button>
       <span class="field-hint">Works while the translator is focused.</span>
     </div>
 
@@ -243,6 +243,6 @@
   </section>
 
 </div>
-<script type="module" src="main.js"></script>
+<script type="module" src="scripts/popup/index.js"></script>
 </body>
 </html>

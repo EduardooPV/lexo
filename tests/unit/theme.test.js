@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_APPEARANCE, THEMES, applyAppearance, readableOn } from '../../src/theme.js';
+import { DEFAULT_APPEARANCE, THEMES, applyAppearance, readableOn } from '../../src/scripts/shared/theme.js';
 
 describe('readableOn', () => {
   it('picks dark text over light backgrounds and light text over dark ones', () => {

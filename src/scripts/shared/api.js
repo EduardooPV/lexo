@@ -5,8 +5,6 @@ export const listen = window.__TAURI__.event.listen;
 export const getSettings = () => invoke('get_settings');
 export const saveSettings = (settings) => invoke('save_settings', { settings });
 export const updateShortcuts = () => invoke('update_shortcuts');
-export const getShortcutsPaused = () => invoke('get_shortcuts_paused');
-export const setShortcutsPaused = (paused) => invoke('set_shortcuts_paused', { paused });
 
 export const translate = (text, target = null) => invoke('translate', { text, target });
 export const getUsage = () => invoke('get_usage');
@@ -27,7 +25,6 @@ export const resizeMini = (height) => invoke('resize_mini', { height });
 export const setAutostart = (enabled) => invoke('set_autostart', { enabled });
 export const getAutostart = () => invoke('get_autostart');
 
-export const checkForUpdate = () => invoke('check_for_update');
 export const pendingUpdate = () => invoke('pending_update');
 export const installUpdate = () => invoke('install_update');
 export const appVersion = () => invoke('app_version');
