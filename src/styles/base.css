@@ -86,3 +86,7 @@
   text-align: center;
 }
 .status.error{ color: var(--red); }
+/* No message, no space: the popup's status sits between the button row and the
+   bottom edge, where an empty one left a 22px band of nothing. Every window
+   refits its height after writing or clearing a message. */
+.status:empty{ display: none; }

@@ -12,16 +12,23 @@ export function fitWindow() {
   });
 }
 
+// An empty status takes no room at all, so writing one grows the window and
+// clearing one has to shrink it back — nothing else runs when the toast fades.
 export function toast(node, text, ms = 2200) {
   node.classList.remove('error');
   node.textContent = text;
+  fitWindow();
   clearTimeout(node._timer);
-  node._timer = setTimeout(() => { node.textContent = ''; }, ms);
+  node._timer = setTimeout(() => {
+    node.textContent = '';
+    fitWindow();
+  }, ms);
 }
 
 export function fail(node, text) {
   node.classList.add('error');
   node.textContent = text;
+  fitWindow();
 }
 
 export function needsWelcome() {
