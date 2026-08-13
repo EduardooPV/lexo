@@ -415,6 +415,36 @@ describe('settings', () => {
   });
 });
 
+describe('window sizing', () => {
+  it('refits the window when a message appears', async () => {
+    const mock = await mountPopup();
+    const before = mock.callsFor('resize_window').length;
+
+    el('btnTranslate').click();
+    await flush();
+
+    expect(el('status').textContent).toBe('Type something before translating.');
+    expect(mock.callsFor('resize_window').length).toBeGreaterThan(before);
+  });
+
+  it('refits it again once a toast has faded, so no gap is left behind', async () => {
+    const mock = await mountPopup();
+    el('btnSettings').click();
+    await flush();
+    el('btnSaveSettings').click();
+    await flush();
+
+    expect(el('status').textContent).toBe('Saved!');
+    const shown = mock.callsFor('resize_window').length;
+
+    await new Promise((resolve) => setTimeout(resolve, 2300));
+    await flush();
+
+    expect(el('status').textContent).toBe('');
+    expect(mock.callsFor('resize_window').length).toBeGreaterThan(shown);
+  });
+});
+
 describe('navigation', () => {
   it('toggles a panel open and closed from its title-bar button', async () => {
     await mountPopup();
