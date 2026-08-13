@@ -28,6 +28,17 @@ function setStatus(message) {
   node.classList.toggle('error', Boolean(message));
 }
 
+// An OCR grab is read straight off the screen, so the source text is still
+// sitting right behind the bubble — showing it again only makes the bubble
+// taller. That mode drops the source block, and the close button moves down to
+// the translation header so it never disappears with it.
+function setCompact(compact) {
+  el('bubble').classList.toggle('is-compact', compact);
+  const actions = el(compact ? 'outActions' : 'srcActions');
+  const close = el('close');
+  if (close.parentElement !== actions) actions.append(close);
+}
+
 function reset() {
   el('srcLang').textContent = '—';
   el('outLang').textContent = '—';
@@ -125,6 +136,7 @@ async function run(text) {
 api.listen('mini-translate', async (event) => {
   shownAt = Date.now();
   const { text = '', origin = 'selection', error = null } = event.payload || {};
+  setCompact(origin === 'ocr');
 
   try {
     const settings = await api.getSettings();

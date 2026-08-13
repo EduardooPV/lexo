@@ -31,6 +31,41 @@ describe('bubble content', () => {
   });
 });
 
+describe('ocr grabs', () => {
+  it('shows only the translation, since the source is still on screen', async () => {
+    const mock = await mountMini();
+    await mock.emit('mini-translate', { text: 'the proletariat', origin: 'ocr' });
+    await flush();
+
+    expect(el('bubble').classList.contains('is-compact')).toBe(true);
+    expect(el('outText').textContent).toBe('translated: the proletariat');
+  });
+
+  it('keeps the close button visible once the source block is dropped', async () => {
+    const mock = await mountMini();
+    await mock.emit('mini-translate', { text: 'the proletariat', origin: 'ocr' });
+    await flush();
+
+    expect(el('close').parentElement).toBe(el('outActions'));
+
+    el('close').click();
+    await flush();
+    expect(mock.callsFor('hide_mini')).toHaveLength(1);
+  });
+
+  it('brings the source block back for a selection', async () => {
+    const mock = await mountMini();
+    await mock.emit('mini-translate', { text: 'algo', origin: 'ocr' });
+    await flush();
+    await mock.emit('mini-translate', { text: 'algo mais', origin: 'selection' });
+    await flush();
+
+    expect(el('bubble').classList.contains('is-compact')).toBe(false);
+    expect(el('close').parentElement).toBe(el('srcActions'));
+    expect(el('srcText').textContent).toBe('algo mais');
+  });
+});
+
 describe('empty and error states', () => {
   it('explains an empty selection differently from an empty OCR grab', async () => {
     const mock = await mountMini();

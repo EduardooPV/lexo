@@ -10,10 +10,10 @@
 <body>
 <div id="bubble" data-tauri-drag-region="deep">
 
-  <div class="block">
+  <div class="block block--src" id="srcBlock">
     <div class="block-head">
       <span class="lang" id="srcLang">—</span>
-      <div class="block-actions">
+      <div class="block-actions" id="srcActions">
         <button class="btn btn--subtle btn--xs btn--icon" id="speakSrc" data-icon="volume" title="Listen"></button>
         <button class="btn btn--subtle btn--xs btn--icon" id="close" data-icon="close" title="Close (Esc)"></button>
       </div>
@@ -21,12 +21,12 @@
     <div class="txt" id="srcText" data-tauri-drag-region="false"></div>
   </div>
 
-  <div class="sep"></div>
+  <div class="sep" id="srcSep"></div>
 
   <div class="block">
     <div class="block-head">
       <span class="lang" id="outLang">—</span>
-      <div class="block-actions">
+      <div class="block-actions" id="outActions">
         <button class="btn btn--subtle btn--xs btn--icon" id="speakOut" data-icon="volume" title="Listen"></button>
         <button class="btn btn--subtle btn--xs btn--icon" id="copyOut" data-icon="copy" title="Copy the translation"></button>
       </div>
