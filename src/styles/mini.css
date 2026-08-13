@@ -12,6 +12,12 @@ body{ font-family: var(--ui-font); color: var(--ink); overflow: hidden; }
   cursor: move;
 }
 
+/* OCR mode: the recognised text is still on screen behind the bubble, so only
+   the translation is worth the space. mini.js moves the close button into the
+   translation header before this hides the block it normally lives in. */
+#bubble.is-compact .block--src,
+#bubble.is-compact .sep{ display: none; }
+
 .block-head{
   display: flex;
   align-items: center;
