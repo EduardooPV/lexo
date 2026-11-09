@@ -3,6 +3,7 @@
   --gold:      #bd93f9;
   --ink:       #f8f8f2;
   --ui-font:   'Segoe UI', system-ui, sans-serif;
+  --ui-weight: 400;
   --app-opacity: 1;
 
   --red: #ff79c6;
@@ -22,6 +23,8 @@
 }
 
 *{ box-sizing: border-box; }
+
+body{ font-weight: var(--ui-weight); }
 
 [hidden]{ display: none !important; }
 

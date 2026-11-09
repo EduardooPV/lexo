@@ -50,6 +50,9 @@ export async function loadSettings() {
 
   appearanceToControls(state.settings.appearance);
   applyAppearance(state.settings.appearance);
+  if ((state.settings.appearance.zoom || 1) !== 1) {
+    api.setZoom(state.settings.appearance.zoom).catch(() => {});
+  }
 
   try {
     if (!(await api.ocrAvailable())) {

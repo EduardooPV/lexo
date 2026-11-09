@@ -24,6 +24,10 @@ pub(crate) struct Appearance {
     pub(crate) text: String,
     #[serde(default = "default_font")]
     pub(crate) font: String,
+    #[serde(default = "default_font_weight")]
+    pub(crate) font_weight: u32,
+    #[serde(default = "default_zoom")]
+    pub(crate) zoom: f64,
 }
 
 impl Default for Appearance {
@@ -34,6 +38,8 @@ impl Default for Appearance {
             accent: default_accent(),
             text: default_text(),
             font: default_font(),
+            font_weight: default_font_weight(),
+            zoom: default_zoom(),
         }
     }
 }
@@ -117,6 +123,13 @@ fn default_font() -> String {
     "'Segoe UI', system-ui, sans-serif".to_string()
 }
 
+fn default_font_weight() -> u32 {
+    400
+}
+fn default_zoom() -> f64 {
+    1.0
+}
+
 pub(crate) fn load_settings(app: &AppHandle) -> Settings {
     read_json(&settings_path(app))
 }
@@ -172,6 +185,13 @@ mod tests {
             assert_eq!(settings.replace_hotkey, "Alt+Shift+T");
             assert_eq!(settings.ocr_hotkey, "Alt+S");
             assert_eq!(settings.swap_hotkey, "Alt+E");
+        }
+
+        #[test]
+        fn appearance_defaults_cover_font_weight_and_zoom() {
+            let settings: Settings = serde_json::from_str(r##"{"appearance":{"bg":"#000000"}}"##).unwrap();
+            assert_eq!(settings.appearance.font_weight, 400);
+            assert_eq!(settings.appearance.zoom, 1.0);
         }
 
         #[test]

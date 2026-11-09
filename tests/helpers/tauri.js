@@ -12,7 +12,9 @@ export const DEFAULT_SETTINGS = {
     bg: '#282a36',
     accent: '#bd93f9',
     text: '#f8f8f2',
-    font: "'Segoe UI', system-ui, sans-serif"
+    font: "'Segoe UI', system-ui, sans-serif",
+    fontWeight: 400,
+    zoom: 1
   },
   settingsVersion: 1
 };
@@ -70,6 +72,7 @@ export function createTauriMock(overrides = {}) {
     app_version: () => '9.9.9',
     set_clipboard: () => null,
     resize_window: () => null,
+    set_zoom: () => null,
     resize_mini: () => null,
     hide_popup: () => null,
     hide_mini: () => null,

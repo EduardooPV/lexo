@@ -136,10 +136,36 @@ pub fn hide_mini(app: AppHandle) {
     }
 }
 
+pub(crate) const POPUP_BASE_WIDTH: f64 = 520.0;
+const POPUP_MIN_HEIGHT: f64 = 120.0;
+
+/// Sets the popup height (logical pixels) and leaves the width alone, so a
+/// width the user dragged out is not snapped back on every content change.
 #[tauri::command]
 pub fn resize_window(app: AppHandle, height: f64) {
     if let Some(win) = app.get_webview_window("popup") {
-        let _ = win.set_size(tauri::LogicalSize::new(520.0_f64, height.max(120.0)));
+        let scale = win.scale_factor().unwrap_or(1.0);
+        let width = win
+            .inner_size()
+            .map(|size| size.width as f64 / scale)
+            .unwrap_or(POPUP_BASE_WIDTH);
+        let _ = win.set_size(tauri::LogicalSize::new(width, height.max(POPUP_MIN_HEIGHT)));
+    }
+}
+
+/// Zooms the popup's webview and scales its width with it, so the layout keeps
+/// the same proportions instead of getting squeezed.
+#[tauri::command]
+pub fn set_zoom(app: AppHandle, factor: f64) {
+    let factor = factor.clamp(0.5, 3.0);
+    if let Some(win) = app.get_webview_window("popup") {
+        let _ = win.set_zoom(factor);
+        let scale = win.scale_factor().unwrap_or(1.0);
+        let height = win
+            .inner_size()
+            .map(|size| size.height as f64 / scale)
+            .unwrap_or(250.0);
+        let _ = win.set_size(tauri::LogicalSize::new(POPUP_BASE_WIDTH * factor, height));
     }
 }
 

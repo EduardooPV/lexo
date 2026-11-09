@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_APPEARANCE, THEMES, applyAppearance, readableOn } from '../../src/scripts/shared/theme.js';
+import { DEFAULT_APPEARANCE, THEMES, applyAppearance, clampZoom, readableOn } from '../../src/scripts/shared/theme.js';
 
 describe('readableOn', () => {
   it('picks dark text over light backgrounds and light text over dark ones', () => {
@@ -74,5 +74,22 @@ describe('THEMES', () => {
     expect(THEMES[0].bg).toBe(DEFAULT_APPEARANCE.bg);
     expect(THEMES[0].accent).toBe(DEFAULT_APPEARANCE.accent);
     expect(THEMES[0].text).toBe(DEFAULT_APPEARANCE.text);
+  });
+});
+
+describe('font weight and zoom', () => {
+  it('writes the font weight onto the document root, defaulting to regular', () => {
+    applyAppearance({ ...DEFAULT_APPEARANCE, fontWeight: 600 });
+    expect(document.documentElement.style.getPropertyValue('--ui-weight')).toBe('600');
+
+    applyAppearance({ ...DEFAULT_APPEARANCE, fontWeight: undefined });
+    expect(document.documentElement.style.getPropertyValue('--ui-weight')).toBe('400');
+  });
+
+  it('keeps the zoom inside its limits and ignores junk', () => {
+    expect(clampZoom(5)).toBe(2);
+    expect(clampZoom(0.1)).toBe(0.7);
+    expect(clampZoom(1.2000000001)).toBe(1.2);
+    expect(clampZoom('abc')).toBe(1);
   });
 });

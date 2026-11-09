@@ -20,6 +20,7 @@ export const setClipboard = (text) => invoke('set_clipboard', { text });
 export const hidePopup = () => invoke('hide_popup');
 export const hideMini = () => invoke('hide_mini');
 export const resizeWindow = (height) => invoke('resize_window', { height });
+export const setZoom = (factor) => invoke('set_zoom', { factor });
 export const resizeMini = (height) => invoke('resize_mini', { height });
 
 export const setAutostart = (enabled) => invoke('set_autostart', { enabled });

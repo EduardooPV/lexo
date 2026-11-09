@@ -34,6 +34,11 @@ use crate::windows::{show_popup, toggle_popup};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be the first plugin: a second launch (Windows key + "lexo")
+        // hands over to the running instance instead of opening another one.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_popup(app);
+        }))
         .manage(AppState::default())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -90,6 +95,7 @@ pub fn run() {
             windows::hide_popup,
             windows::hide_mini,
             windows::resize_window,
+            windows::set_zoom,
             windows::resize_mini,
             autostart::set_autostart,
             autostart::get_autostart,
