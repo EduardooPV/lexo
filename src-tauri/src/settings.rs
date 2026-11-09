@@ -189,7 +189,8 @@ mod tests {
 
         #[test]
         fn appearance_defaults_cover_font_weight_and_zoom() {
-            let settings: Settings = serde_json::from_str(r##"{"appearance":{"bg":"#000000"}}"##).unwrap();
+            let settings: Settings =
+                serde_json::from_str(r##"{"appearance":{"bg":"#000000"}}"##).unwrap();
             assert_eq!(settings.appearance.font_weight, 400);
             assert_eq!(settings.appearance.zoom, 1.0);
         }
