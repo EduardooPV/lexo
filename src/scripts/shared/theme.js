@@ -3,8 +3,20 @@ export const DEFAULT_APPEARANCE = {
   bg: '#282a36',
   accent: '#bd93f9',
   text: '#f8f8f2',
-  font: "'Segoe UI', system-ui, sans-serif"
+  font: "'Segoe UI', system-ui, sans-serif",
+  fontWeight: 400,
+  zoom: 1
 };
+
+export const ZOOM_MIN = 0.7;
+export const ZOOM_MAX = 2;
+export const ZOOM_STEP = 0.1;
+
+export function clampZoom(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 1;
+  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, number)) * 100) / 100;
+}
 
 export const THEMES = [
   { name: 'Dracula (default)', bg: '#282a36', accent: '#bd93f9', text: '#f8f8f2' },
@@ -37,6 +49,7 @@ export function applyAppearance(appearance) {
   root.setProperty('--gold', appearance.accent);
   root.setProperty('--ink', appearance.text);
   root.setProperty('--ui-font', appearance.font);
+  root.setProperty('--ui-weight', String(appearance.fontWeight || 400));
   root.setProperty('--app-opacity', String(appearance.opacity));
   root.setProperty('--on-accent', readableOn(appearance.accent));
 }

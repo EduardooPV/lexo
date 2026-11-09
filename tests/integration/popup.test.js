@@ -492,3 +492,53 @@ describe('navigation', () => {
     expect(el('settingsView').hidden).toBe(false);
   });
 });
+
+describe('zoom', () => {
+  const press = (key, init = {}) =>
+    document.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: true, bubbles: true, cancelable: true, ...init }));
+
+  it('Ctrl + zooms in, Ctrl - zooms out and Ctrl 0 resets, saving each time', async () => {
+    const mock = await mountPopup();
+
+    press('=');
+    await flush();
+    expect(mock.callsFor('set_zoom').at(-1).args.factor).toBe(1.1);
+    expect(mock.callsFor('save_settings').at(-1).args.settings.appearance.zoom).toBe(1.1);
+
+    press('-');
+    press('-');
+    await flush();
+    expect(mock.callsFor('set_zoom').at(-1).args.factor).toBe(0.9);
+
+    press('0');
+    await flush();
+    expect(mock.callsFor('set_zoom').at(-1).args.factor).toBe(1);
+  });
+
+  it('stops at the zoom limits', async () => {
+    const mock = await mountPopup();
+    for (let i = 0; i < 20; i += 1) press('+');
+    await flush();
+    expect(mock.callsFor('set_zoom').at(-1).args.factor).toBe(2);
+  });
+
+  it('leaves other Ctrl shortcuts alone', async () => {
+    const mock = await mountPopup();
+    press('a');
+    await flush();
+    expect(mock.callsFor('set_zoom')).toHaveLength(0);
+  });
+
+  it('saves the chosen font weight with the appearance', async () => {
+    const mock = await mountPopup();
+    el('btnAppearance').click();
+    await flush();
+    el('fontWeight').value = '700';
+    el('fontWeight').dispatchEvent(new Event('input', { bubbles: true }));
+    el('btnSaveAppearance').click();
+    await flush();
+
+    expect(mock.callsFor('save_settings').at(-1).args.settings.appearance.fontWeight).toBe(700);
+    expect(document.documentElement.style.getPropertyValue('--ui-weight')).toBe('700');
+  });
+});

@@ -1,5 +1,6 @@
 import { THEMES, applyAppearance } from '../shared/theme.js';
 import { el } from './dom.js';
+import { state } from './state.js';
 
 export function appearanceFromControls() {
   return {
@@ -7,7 +8,10 @@ export function appearanceFromControls() {
     bg: el('colBg').value,
     accent: el('colAccent').value,
     text: el('colText').value,
-    font: el('font').value
+    font: el('font').value,
+    fontWeight: parseInt(el('fontWeight').value, 10),
+    // Zoom is changed with Ctrl +/- / 0, not from a control; carry it over.
+    zoom: (state.settings.appearance && state.settings.appearance.zoom) || 1
   };
 }
 
@@ -26,6 +30,7 @@ export function appearanceToControls(appearance) {
     select.append(custom);
   }
   select.value = appearance.font;
+  el('fontWeight').value = String(appearance.fontWeight || 400);
 }
 
 export function syncThemeSelect() {

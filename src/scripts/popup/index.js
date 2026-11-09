@@ -22,6 +22,7 @@ import {
   syncUpdateBanner
 } from './updater.js';
 import { wireVoiceInput } from './voice.js';
+import { setZoom, zoomFromKey } from './zoom.js';
 
 hydrate();
 
@@ -139,7 +140,7 @@ RECORDERS.forEach((id) => {
   el(id).addEventListener('click', () => startRecording(el(id)));
 });
 
-['opacity', 'colBg', 'colAccent', 'colText', 'font'].forEach((id) => {
+['opacity', 'colBg', 'colAccent', 'colText', 'font', 'fontWeight'].forEach((id) => {
   el(id).addEventListener('input', previewAppearance);
 });
 
@@ -159,6 +160,7 @@ el('btnResetAll').addEventListener('click', () => {
   el('autostart').checked = true;
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);
+  setZoom(DEFAULT_APPEARANCE.zoom);
   saveAll(el('settingsStatus'));
 });
 
@@ -208,6 +210,8 @@ el('btnBackAppearance').addEventListener('click', () => {
 
 document.addEventListener('keydown', (event) => {
   if (isRecording()) return;
+
+  if (zoomFromKey(event)) return;
 
   if (matchesHotkey(event, state.settings.swapHotkey)) {
     event.preventDefault();
