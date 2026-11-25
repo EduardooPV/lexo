@@ -143,15 +143,37 @@ const POPUP_MIN_HEIGHT: f64 = 120.0;
 /// Sets the popup height (logical pixels) and leaves the width alone, so a
 /// width the user dragged out is not snapped back on every content change.
 #[tauri::command]
-pub fn resize_window(app: AppHandle, height: f64) {
-    if let Some(win) = app.get_webview_window("popup") {
-        let scale = win.scale_factor().unwrap_or(1.0);
-        let width = win
-            .inner_size()
-            .map(|size| size.width as f64 / scale)
-            .unwrap_or(POPUP_BASE_WIDTH);
-        let _ = win.set_size(tauri::LogicalSize::new(width, height.max(POPUP_MIN_HEIGHT)));
+pub fn resize_window(app: AppHandle, height: f64) -> Option<f64> {
+    let win = app.get_webview_window("popup")?;
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let inner = win.inner_size().ok();
+    let width = inner.map_or(POPUP_BASE_WIDTH, |size| size.width as f64 / scale);
+    let mut height = height.max(POPUP_MIN_HEIGHT);
+    let monitor = win
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| win.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
+        let area = monitor.work_area();
+        let frame = inner
+            .zip(win.outer_size().ok())
+            .map_or(0, |(inner, outer)| {
+                outer.height.saturating_sub(inner.height)
+            });
+        let available = area.size.height.saturating_sub(frame);
+        height = height.min(available as f64 / scale);
+        if let Ok(position) = win.outer_position() {
+            let popup_height = (height * scale).round() as i32 + frame as i32;
+            let bottom = area.position.y + area.size.height as i32;
+            let y = position.y.min(bottom - popup_height).max(area.position.y);
+            if y != position.y {
+                let _ = win.set_position(PhysicalPosition::new(position.x, y));
+            }
+        }
     }
+    win.set_size(tauri::LogicalSize::new(width, height)).ok()?;
+    Some(height)
 }
 
 /// Zooms the popup's webview and scales its width with it, so the layout keeps

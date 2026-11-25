@@ -13,17 +13,14 @@ spending time on a pull request that doesn't fit the project's direction.
 See the [Development](README.md#development) section of the README for prerequisites
 and the local dev loop (`npm run dev`).
 
-There is no test suite or JS lint/build config — the frontend is plain files served
-as-is. Before opening a pull request, run the backend checks from `src-tauri/`:
+Run `npm test` from the repository root to run the Vitest suite. Run the Rust
+formatting check, lint, and tests from `src-tauri/` before opening a pull request.
 
 ```bash
-cargo check
-cargo clippy
-cargo fmt
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
 ```
-
-A pull request with `cargo clippy` warnings or unformatted Rust code will not be merged
-as-is.
 
 ## Style
 
@@ -32,7 +29,7 @@ as-is.
   refactors in the same pull request.
 - New commands added to the Rust backend must be registered in the
   `invoke_handler![...]` list in `src-tauri/src/lib.rs`.
-- Every clickable UI element should use the `.btn` class system in `src/base.css`
+- Every clickable UI element should use the `.btn` class system in `src/styles/base.css`
   rather than a new bespoke button style.
 
 ## Branch naming

@@ -1,13 +1,14 @@
 import * as api from '../shared/api.js';
 import { hydrate, setIcon, setLabel } from '../shared/icons.js';
-import { guessSpokenLanguage, isSpeechAvailable, loadVoices, speak } from '../shared/speech.js';
+import { languageName } from '../shared/languages.js';
+import { detectedSpeechLanguage, guessSpokenLanguage, isSpeechAvailable, loadVoices, speak } from '../shared/speech.js';
 import { DEFAULT_APPEARANCE, applyAppearance } from '../shared/theme.js';
 import { dirBadge, el, out, outputCard, src, status, VIEWS } from './dom.js';
-import { DEFAULT_SETTINGS, LANGUAGE_NAMES, state } from './state.js';
+import { DEFAULT_SETTINGS, state } from './state.js';
 import { fail, fitWindow, showView } from './views.js';
-import { cycleDirection, translate, updateBadge } from './translate.js';
-import { loadHistory, renderHistory } from './history.js';
-import { loadSettings, refreshUsage, saveAll } from './settings.js';
+import { cycleDirection, resetLongTextConfirmation, selectTarget, translate, updateBadge } from './translate.js';
+import { exportHistory, loadHistory, renderHistory } from './history.js';
+import { applyLanguageSettings, buildLanguageSelects, loadSettings, refreshUsage, renderUsageHint, saveAll } from './settings.js';
 import { RECORDERS, isRecording, matchesHotkey, setRecorder, startRecording } from './recorder.js';
 import {
   appearanceToControls,
@@ -25,8 +26,10 @@ import { wireVoiceInput } from './voice.js';
 import { setZoom, zoomFromKey } from './zoom.js';
 
 hydrate();
+buildLanguageSelects();
 
-el('btnTranslate').addEventListener('click', translate);
+el('btnTranslate').addEventListener('click', () => translate(true));
+el('targetSelect').addEventListener('change', (event) => selectTarget(event.target.value));
 dirBadge.addEventListener('click', cycleDirection);
 
 src.addEventListener('keydown', (event) => {
@@ -37,6 +40,7 @@ src.addEventListener('keydown', (event) => {
 });
 
 src.addEventListener('input', () => {
+  resetLongTextConfirmation();
   if (state.lastResult && src.value.trim() !== state.lastResult.sourceText) {
     state.lastResult = null;
     updateBadge();
@@ -69,11 +73,14 @@ if (isSpeechAvailable()) {
   window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
 
   el('btnSpeakSrc').addEventListener('click', () => {
-    const detected = state.lastResult && state.lastResult.detectedSource;
-    speak(src.value.trim(), detected ? detected.toLowerCase().slice(0, 2) : guessSpokenLanguage(src.value));
+    const { primaryLang, secondaryLang } = state.settings;
+    const detected = state.lastResult?.detectedSource;
+    const language = detected ? detectedSpeechLanguage(detected, primaryLang, secondaryLang)
+      : guessSpokenLanguage(src.value, primaryLang, secondaryLang);
+    speak(src.value.trim(), language);
   });
   el('btnSpeakOut').addEventListener('click', () => {
-    speak(out.textContent.trim(), state.lastResult ? state.lastResult.target.toLowerCase() : 'en');
+    speak(out.textContent.trim(), state.lastResult?.target || state.settings.secondaryLang);
   });
 } else {
   el('btnSpeakSrc').hidden = true;
@@ -109,6 +116,7 @@ el('historyList').addEventListener('click', async (event) => {
   }
 
   src.value = entry.source;
+  resetLongTextConfirmation();
   out.textContent = entry.translated;
   state.lastResult = {
     text: entry.translated,
@@ -117,7 +125,7 @@ el('historyList').addEventListener('click', async (event) => {
     sourceText: entry.source
   };
   outputCard.hidden = false;
-  el('outDir').textContent = LANGUAGE_NAMES[entry.to] || entry.to;
+  el('outDir').textContent = languageName(entry.to);
   updateBadge();
   showView('main');
 });
@@ -126,6 +134,8 @@ el('btnClearHistory').addEventListener('click', async () => {
   state.historyEntries = await api.clearHistory();
   renderHistory();
 });
+el('btnExportJson').addEventListener('click', () => exportHistory('json'));
+el('btnExportCsv').addEventListener('click', () => exportHistory('csv'));
 
 el('btnRefreshUsage').addEventListener('click', refreshUsage);
 
@@ -160,6 +170,7 @@ el('btnResetAll').addEventListener('click', () => {
   el('autoTranslateClipboard').checked = false;
   el('keepHistory').checked = DEFAULT_SETTINGS.keepHistory;
   el('autostart').checked = true;
+  applyLanguageSettings(DEFAULT_SETTINGS);
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);
   setZoom(DEFAULT_APPEARANCE.zoom);
@@ -232,6 +243,7 @@ el('btnDismissUpdate').addEventListener('click', dismissUpdateBanner);
 el('btnInstallUpdate').addEventListener('click', (event) => installUpdate(event.currentTarget));
 
 api.listen('update-available', (event) => showUpdateBanner(event.payload));
+api.listen('usage-updated', (event) => renderUsageHint(event.payload));
 
 api.listen('popup-shown', (event) => {
   syncUpdateBanner();
@@ -239,6 +251,7 @@ api.listen('popup-shown', (event) => {
   const clipboard = (event.payload && event.payload.clipboard) || '';
   if (clipboard.trim()) {
     src.value = clipboard;
+    resetLongTextConfirmation();
     state.lastResult = null;
     translate();
   }

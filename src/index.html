@@ -34,9 +34,15 @@
       <button class="lang-badge" id="dirBadge" title="Click to force a direction">
         <span data-icon="swap"></span><span id="dirLabel">Auto</span>
       </button>
+      <label class="target-picker">
+        <span data-icon="languages"></span>
+        <select id="targetSelect" aria-label="Target language">
+          <option value="">Auto</option>
+        </select>
+      </label>
     </div>
 
-    <textarea id="src" aria-label="Text to translate" placeholder="Type or paste text in Portuguese or English..." rows="3" autofocus></textarea>
+    <textarea id="src" aria-label="Text to translate" placeholder="Type or paste text to translate..." rows="3" autofocus></textarea>
 
     <div class="io-tools">
       <button class="btn btn--icon" id="btnMic" data-icon="mic" title="Voice input"></button>
@@ -46,6 +52,7 @@
     </div>
 
     <div class="status" id="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="usage-hint" id="usageHint" hidden></div>
 
     <div class="output-card" id="outputCard" role="region" aria-label="Translation" hidden>
       <div class="output-head">
@@ -77,7 +84,7 @@
         <input type="password" id="welcomeKey" placeholder="xxxxxxxx-xxxx-...-xxxx:fx" spellcheck="false" autocomplete="off">
         <button type="button" class="btn btn--ghost btn--icon" id="btnRevealWelcomeKey" data-icon="eye" title="Show the key"></button>
       </div>
-      <span class="field-hint">DeepL lists it under Account › API keys. It never leaves this machine.</span>
+      <span class="field-hint">DeepL lists it under Account › API keys. Lexo sends the key only to the DeepL API.</span>
     </label>
 
     <div class="panel-actions">
@@ -99,6 +106,12 @@
     <p class="field-hint" id="historyDisabledHint" hidden>History is turned off in Settings.</p>
 
     <div class="panel-actions">
+      <button class="btn btn--ghost" id="btnExportJson" disabled>
+        <span data-icon="download"></span>Export JSON
+      </button>
+      <button class="btn btn--ghost" id="btnExportCsv" disabled>
+        <span data-icon="download"></span>Export CSV
+      </button>
       <button class="btn btn--danger" id="btnClearHistory" title="Pinned entries are kept">
         <span data-icon="trash"></span>Clear
       </button>
@@ -106,10 +119,30 @@
         <span data-icon="back"></span>Back
       </button>
     </div>
+    <div class="status" id="historyStatus" aria-live="polite" aria-atomic="true"></div>
   </section>
 
   <section id="settingsView" hidden>
     <h2 class="panel-title" tabindex="-1">Settings</h2>
+
+    <h3 class="settings-heading">Languages</h3>
+    <label class="field">
+      <span class="field-label">My language</span>
+      <select id="primaryLang"></select>
+    </label>
+    <label class="field">
+      <span class="field-label">Translate to</span>
+      <select id="secondaryLang"></select>
+    </label>
+    <label class="field">
+      <span class="field-label">Formality</span>
+      <select id="formality" aria-describedby="formalityHint">
+        <option value="default">Automatic</option>
+        <option value="more">More formal</option>
+        <option value="less">Less formal</option>
+      </select>
+    </label>
+    <p class="field-hint" id="formalityHint">Applies where the language supports it (e.g. German, French, Spanish, Portuguese).</p>
 
     <label class="field">
       <span class="field-label">DeepL API key (required)</span>

@@ -1,12 +1,12 @@
 import * as api from './shared/api.js';
 import { hydrate, setIcon } from './shared/icons.js';
+import { languageName } from './shared/languages.js';
 import { setErrorStatus } from './shared/status.js';
 import { applyAppearance } from './shared/theme.js';
-import { isSpeechAvailable, loadVoices, speak } from './shared/speech.js';
+import { detectedSpeechLanguage, isSpeechAvailable, loadVoices, speak } from './shared/speech.js';
 
 const el = (id) => document.getElementById(id);
 
-const LANGUAGE_NAMES = { PT: 'Portuguese', EN: 'English' };
 const EMPTY_MESSAGE = {
   selection: 'No text selected — nothing was copied.',
   ocr: 'No text found in that region.'
@@ -14,6 +14,9 @@ const EMPTY_MESSAGE = {
 
 let lastResult = null;
 let shownAt = 0;
+let settings = null;
+let currentEvent = 0;
+let pendingText = null;
 
 hydrate();
 
@@ -23,11 +26,11 @@ function fit() {
   });
 }
 
-function setStatus(message) {
+function setStatus(message, isError = Boolean(message)) {
   const node = el('miniStatus');
-  if (message) setErrorStatus(node, message);
+  if (isError) setErrorStatus(node, message);
   else {
-    node.textContent = '';
+    node.textContent = message;
     node.classList.remove('error');
   }
 }
@@ -61,12 +64,14 @@ if (isSpeechAvailable()) {
 }
 
 el('speakSrc').addEventListener('click', () => {
-  const language = lastResult ? lastResult.detectedSource.toLowerCase().slice(0, 2) : 'en';
+  const language = lastResult
+    ? detectedSpeechLanguage(lastResult.detectedSource, settings?.primaryLang, settings?.secondaryLang)
+    : settings?.primaryLang;
   speak(el('srcText').textContent, language);
 });
 
 el('speakOut').addEventListener('click', () => {
-  speak(el('outText').textContent, lastResult ? lastResult.target.toLowerCase() : 'en');
+  speak(el('outText').textContent, lastResult?.target || settings?.secondaryLang);
 });
 
 el('copyOut').addEventListener('click', async (event) => {
@@ -116,37 +121,60 @@ window.addEventListener('blur', () => {
   api.hideMini();
 });
 
-async function run(text) {
+async function run(text, confirmed = false, eventId = currentEvent) {
+  pendingText = null;
+  el('miniConfirm').hidden = true;
   el('srcText').textContent = text;
   el('outText').textContent = '…';
   el('srcLang').textContent = '—';
   el('outLang').textContent = '—';
+  lastResult = null;
   setStatus('');
   fit();
 
   try {
-    const result = await api.translate(text);
+    const result = await api.translate(text, null, confirmed);
+    if (eventId !== currentEvent) return;
     lastResult = result;
     el('outText').textContent = result.text;
-    el('srcLang').textContent = LANGUAGE_NAMES[result.detectedSource] || result.detectedSource;
-    el('outLang').textContent = LANGUAGE_NAMES[result.target] || result.target;
+    el('srcLang').textContent = languageName(result.detectedSource);
+    el('outLang').textContent = languageName(result.target);
   } catch (error) {
+    if (eventId !== currentEvent) return;
     el('outText').textContent = '';
-    setStatus(api.describeError(error));
+    const needsConfirmation = api.longTextLength(error) !== null;
+    setStatus(api.describeError(error), !needsConfirmation);
+    if (needsConfirmation) {
+      pendingText = text;
+      el('miniConfirm').hidden = false;
+    }
   }
   fit();
 }
 
+el('miniConfirm').addEventListener('click', () => {
+  if (pendingText) {
+    el('bubble').focus({ preventScroll: true });
+    run(pendingText, true);
+  }
+});
+
 api.listen('mini-translate', async (event) => {
+  const eventId = ++currentEvent;
+  pendingText = null;
+  el('miniConfirm').hidden = true;
   shownAt = Date.now();
   const { text = '', origin = 'selection', error = null } = event.payload || {};
   setCompact(origin === 'ocr');
   el('bubble').focus({ preventScroll: true });
 
   try {
-    const settings = await api.getSettings();
-    applyAppearance(settings && settings.appearance);
+    const updated = await api.getSettings();
+    if (eventId !== currentEvent) return;
+    settings = updated;
+    applyAppearance(settings?.appearance);
   } catch (_) {}
+  if (eventId !== currentEvent) return;
 
   if (error) {
     reset();
@@ -163,5 +191,5 @@ api.listen('mini-translate', async (event) => {
     return;
   }
 
-  run(text.trim());
+  await run(text.trim());
 });

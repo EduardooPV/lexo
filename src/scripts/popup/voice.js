@@ -1,4 +1,6 @@
 import { el, src, status } from './dom.js';
+import { baseOf } from '../shared/languages.js';
+import { speechLocale } from '../shared/speech.js';
 import { state } from './state.js';
 import { translate } from './translate.js';
 import { fail, fitWindow } from './views.js';
@@ -48,8 +50,9 @@ export function wireVoiceInput() {
       stopMic();
       return;
     }
-    recognition.lang =
-      state.forcedTarget === 'EN' ? 'pt-BR' : state.forcedTarget === 'PT' ? 'en-US' : 'pt-BR';
+    const { primaryLang, secondaryLang } = state.settings;
+    const spoken = baseOf(state.forcedTarget) === baseOf(primaryLang) ? secondaryLang : primaryLang;
+    recognition.lang = speechLocale(spoken);
     try {
       recognition.start();
       setMic(true);

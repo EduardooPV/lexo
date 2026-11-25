@@ -74,6 +74,7 @@
   },
   "bundle": {
     "active": true,
+    "shortDescription": "Global-hotkey desktop translator",
     "targets": "all",
     "createUpdaterArtifacts": true,
     "icon": [

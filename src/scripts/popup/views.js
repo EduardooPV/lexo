@@ -18,8 +18,11 @@ const VIEW_BUTTONS = {
 // Height the app last asked for, in CSS pixels. A window height that differs
 // from it was set by the user dragging the edge, not by us.
 let requestedHeight = 0;
+let requestedContentHeight = 0;
+let requestedZoom = 1;
 let customHeight = false;
 let resizeTimer = 0;
+let pendingResize = Promise.resolve();
 
 function currentZoom() {
   return (state.settings.appearance && state.settings.appearance.zoom) || 1;
@@ -28,9 +31,24 @@ function currentZoom() {
 export function fitWindow() {
   requestAnimationFrame(() => {
     if (customHeight) return;
-    requestedHeight = Math.ceil(el('app').scrollHeight);
-    api.resizeWindow(Math.ceil(requestedHeight * currentZoom())).catch(() => {});
+    const height = el('app').scrollHeight;
+    if (height === requestedContentHeight && currentZoom() === requestedZoom &&
+        Math.abs(window.innerHeight - requestedHeight) <= 4) return;
+    resizeToContentHeight(height);
   });
+}
+
+function resizeToContentHeight(height) {
+  const zoom = currentZoom();
+  requestedHeight = Math.ceil(height);
+  requestedContentHeight = height;
+  requestedZoom = zoom;
+  const request = api.resizeWindow(Math.ceil(requestedHeight * zoom)).then((appliedHeight) => {
+    if (request === pendingResize && Number.isFinite(appliedHeight)) {
+      requestedHeight = appliedHeight / zoom;
+    }
+  }).catch(() => {});
+  pendingResize = request;
 }
 
 export function hasCustomHeight() {
@@ -41,8 +59,7 @@ export function hasCustomHeight() {
 // height is re-sent in the new scale; an auto-fitted one just refits.
 export function refitAfterZoom(cssHeight) {
   if (customHeight) {
-    requestedHeight = cssHeight;
-    api.resizeWindow(Math.ceil(cssHeight * currentZoom())).catch(() => {});
+    resizeToContentHeight(cssHeight);
   } else {
     fitWindow();
   }
@@ -50,7 +67,8 @@ export function refitAfterZoom(cssHeight) {
 
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
+  resizeTimer = setTimeout(async () => {
+    await pendingResize;
     if (!requestedHeight) return;
     if (Math.abs(window.innerHeight - requestedHeight) > 4) {
       customHeight = true;
@@ -88,6 +106,8 @@ export function showView(name) {
   const view = name === 'main' && needsWelcome() ? 'welcome' : name;
   if (!Object.hasOwn(VIEWS, view)) return;
   Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== view; });
+  el('app').scrollTop = 0;
+  VIEWS[view].scrollTop = 0;
   for (const [key, id] of Object.entries(VIEW_BUTTONS)) {
     const button = el(id);
     if (key === view) button.setAttribute('aria-current', 'page');

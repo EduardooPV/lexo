@@ -22,8 +22,11 @@ Include:
 
 ## Scope
 
-Lexo talks to exactly one external service — the DeepL API, using the key you provide
-in Settings. That key is stored locally in `settings.json` under your OS's app-config
-directory and is never sent anywhere except the DeepL API itself. Reports related to
-that key's handling, the app's Content-Security-Policy, or the selection/OCR flows
-(which simulate keyboard input) are all in scope.
+Lexo sends the API key you provide in Settings only to the DeepL API. It stores
+the key in Windows Credential Manager, macOS Keychain, or a Linux Secret Service
+credential store. When the credential store is unavailable, Lexo can use
+`settings.json` in your app-config directory and shows a warning when saving the
+key there.
+
+Issues with API key handling, the app's Content Security Policy, or the
+selection and OCR flows that simulate keyboard input are in scope.

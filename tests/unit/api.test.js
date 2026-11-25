@@ -67,6 +67,18 @@ describe('describeError', () => {
     expect(describeError(null)).toBe('');
     expect(describeError(undefined)).toBe('');
   });
+
+  it('formats long-text confirmations and hard request-size errors separately', async () => {
+    const { describeError, longTextLength } = await importApi();
+    expect(longTextLength('too_long: 5001')).toBe(5001);
+    expect(describeError('too_long: 5001')).toBe(
+      'This text has 5001 characters and counts toward your DeepL quota. Translate anyway?'
+    );
+    expect(describeError('too_large: request exceeds limit')).toBe(
+      'That text is too long for a single request. Split it into smaller parts.'
+    );
+    expect(longTextLength('replace_too_long: 5001')).toBeNull();
+  });
 });
 
 describe('command wrappers', () => {
@@ -79,13 +91,13 @@ describe('command wrappers', () => {
   it('lets DeepL pick the direction when no target is given', async () => {
     const api = await importApi();
     await api.translate('bom dia');
-    expect(mock.callsFor('translate')[0].args).toEqual({ text: 'bom dia', target: null });
+    expect(mock.callsFor('translate')[0].args).toEqual({ text: 'bom dia', target: null, confirmed: false });
   });
 
   it('forwards a pinned direction as the target', async () => {
     const api = await importApi();
-    await api.translate('good morning', 'PT');
-    expect(mock.callsFor('translate')[0].args).toEqual({ text: 'good morning', target: 'PT' });
+    await api.translate('good morning', 'PT-BR', true);
+    expect(mock.callsFor('translate')[0].args).toEqual({ text: 'good morning', target: 'PT-BR', confirmed: true });
   });
 
   it('names every argument the way the Rust commands expect', async () => {

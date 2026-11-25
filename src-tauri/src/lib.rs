@@ -3,10 +3,14 @@ mod cache;
 mod capture;
 mod deepl;
 mod history;
+mod history_export;
 mod language;
+mod language_migration;
+mod languages;
 mod ocr;
 mod paths;
 mod persist;
+mod quota;
 mod secrets;
 mod selection;
 mod settings;
@@ -29,7 +33,7 @@ use crate::selection::{replace_selection, translate_selection};
 use crate::settings::{load_settings, update_popup_position, Settings};
 use crate::shortcuts::{register_global_shortcuts, set_shortcuts_paused};
 use crate::state::{load_state, AppState};
-use crate::tray::{build_tray_menu, open_view};
+use crate::tray::{build_tray_menu, open_view, tray_tooltip};
 use crate::updater::check_for_update_on_startup;
 use crate::windows::{show_popup, toggle_popup};
 
@@ -60,6 +64,8 @@ fn run_app() -> tauri::Result<()> {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             None,
@@ -105,6 +111,7 @@ fn run_app() -> tauri::Result<()> {
             deepl::verify_deepl_key,
             deepl::open_deepl_signup,
             history::get_history,
+            history::export_history,
             history::clear_history,
             history::delete_history_entry,
             history::toggle_history_pin,
@@ -143,7 +150,7 @@ fn run_app() -> tauri::Result<()> {
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Lexo — PT ⇄ EN")
+                .tooltip(tray_tooltip(&settings))
                 .menu(&build_tray_menu(&handle, settings.shortcuts_paused)?)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
