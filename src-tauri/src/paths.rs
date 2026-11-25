@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{
     ffi::OsString,
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::{self, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -26,6 +26,17 @@ pub(crate) fn read_json<T: serde::de::DeserializeOwned + Default>(path: &Path) -
         .unwrap_or_default()
 }
 
+fn create_temp(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
+}
+
 fn open_temp(path: &Path) -> io::Result<(PathBuf, File)> {
     static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
     let name = path
@@ -35,7 +46,7 @@ fn open_temp(path: &Path) -> io::Result<(PathBuf, File)> {
     temp_name.push(".tmp");
     let temp = path.with_file_name(temp_name);
 
-    match File::create_new(&temp) {
+    match create_temp(&temp) {
         Ok(file) => Ok((temp, file)),
         // A prior interruption can leave a temp file behind. Never overwrite it.
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => loop {
@@ -43,7 +54,7 @@ fn open_temp(path: &Path) -> io::Result<(PathBuf, File)> {
             let id = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
             unique.push(format!(".{}.{id}.tmp", std::process::id()));
             let temp = path.with_file_name(unique);
-            match File::create_new(&temp) {
+            match create_temp(&temp) {
                 Ok(file) => break Ok((temp, file)),
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
                 Err(error) => break Err(error),
@@ -88,6 +99,11 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), b"old");
         atomic_write(&path, b"replacement").unwrap();
         assert_eq!(fs::read(&path).unwrap(), b"replacement");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o077, 0);
+        }
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
 
         let stale = dir.join("settings.json.tmp");

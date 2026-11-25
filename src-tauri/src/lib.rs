@@ -28,7 +28,7 @@ use crate::capture::start_region_capture;
 use crate::selection::{replace_selection, translate_selection};
 use crate::settings::{load_settings, update_popup_position, Settings};
 use crate::shortcuts::{register_global_shortcuts, set_shortcuts_paused};
-use crate::state::load_state;
+use crate::state::{load_state, AppState};
 use crate::tray::{build_tray_menu, open_view};
 use crate::updater::check_for_update_on_startup;
 use crate::windows::{show_popup, toggle_popup};
@@ -43,7 +43,9 @@ fn run_app() -> tauri::Result<()> {
         // Must be the first plugin: a second launch (Windows key + "lexo")
         // hands over to the running instance instead of opening another one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_popup(app);
+            if app.try_state::<AppState>().is_some() {
+                show_popup(app);
+            }
         }))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
