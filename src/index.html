@@ -12,8 +12,8 @@
 
   <div class="titlebar" data-tauri-drag-region>
     <div class="titlebar-title" data-tauri-drag-region>Lexo</div>
-    <div class="titlebar-actions">
-      <button class="btn btn--subtle btn--sm btn--icon" id="btnHome" data-icon="home" title="Translator"></button>
+    <div class="titlebar-actions" role="toolbar" aria-label="Views">
+      <button class="btn btn--subtle btn--sm btn--icon" id="btnHome" data-icon="home" title="Translator" aria-current="page"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnHistory" data-icon="history" title="History"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnAppearance" data-icon="palette" title="Appearance"></button>
       <button class="btn btn--subtle btn--sm btn--icon" id="btnShortcuts" data-icon="keyboard" title="Shortcuts"></button>
@@ -36,7 +36,7 @@
       </button>
     </div>
 
-    <textarea id="src" placeholder="Type or paste text in Portuguese or English..." rows="3" autofocus></textarea>
+    <textarea id="src" aria-label="Text to translate" placeholder="Type or paste text in Portuguese or English..." rows="3" autofocus></textarea>
 
     <div class="io-tools">
       <button class="btn btn--icon" id="btnMic" data-icon="mic" title="Voice input"></button>
@@ -45,9 +45,9 @@
       <button class="btn btn--primary" id="btnTranslate">Translate</button>
     </div>
 
-    <div class="status" id="status"></div>
+    <div class="status" id="status" aria-live="polite" aria-atomic="true"></div>
 
-    <div class="output-card" id="outputCard" hidden>
+    <div class="output-card" id="outputCard" role="region" aria-label="Translation" hidden>
       <div class="output-head">
         <span class="lang-badge lang-badge--static" id="outDir">Translation</span>
         <div class="output-actions">
@@ -55,12 +55,12 @@
           <button class="btn btn--subtle btn--sm btn--icon" id="btnCopy" data-icon="copy" title="Copy"></button>
         </div>
       </div>
-      <div class="translation" id="out"></div>
+      <div class="translation" id="out" aria-live="polite"></div>
     </div>
   </main>
 
   <section id="welcomeView" hidden>
-    <h2 class="panel-title">Welcome to Lexo</h2>
+    <h2 class="panel-title" tabindex="-1">Welcome to Lexo</h2>
 
     <p class="welcome-lead">
       Lexo translates through your own DeepL account, so nothing you type passes
@@ -84,15 +84,15 @@
       <button class="btn btn--primary" id="btnConnectDeepl">Connect</button>
       <button class="btn btn--ghost" id="btnSkipWelcome">Later</button>
     </div>
-    <div class="status" id="welcomeStatus"></div>
+    <div class="status" id="welcomeStatus" aria-live="polite" aria-atomic="true"></div>
   </section>
 
   <section id="historyView" hidden>
-    <h2 class="panel-title">History</h2>
+    <h2 class="panel-title" tabindex="-1">History</h2>
 
     <div class="history-search">
       <span data-icon="search"></span>
-      <input type="search" id="historySearch" placeholder="Search translations..." spellcheck="false" autocomplete="off">
+      <input type="search" id="historySearch" aria-label="Search translations" placeholder="Search translations..." spellcheck="false" autocomplete="off">
     </div>
 
     <div class="history-list" id="historyList"></div>
@@ -109,7 +109,7 @@
   </section>
 
   <section id="settingsView" hidden>
-    <h2 class="panel-title">Settings</h2>
+    <h2 class="panel-title" tabindex="-1">Settings</h2>
 
     <label class="field">
       <span class="field-label">DeepL API key (required)</span>
@@ -121,7 +121,9 @@
     </label>
 
     <div class="usage" id="usage" hidden>
-      <div class="usage-bar"><div class="usage-fill" id="usageFill"></div></div>
+      <div class="usage-bar" role="progressbar" aria-label="DeepL monthly usage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="usage-fill" id="usageFill"></div>
+      </div>
       <div class="usage-text">
         <span id="usageText">—</span>
         <button type="button" class="btn btn--subtle btn--sm btn--icon" id="btnRefreshUsage" data-icon="refresh" title="Refresh usage"></button>
@@ -153,41 +155,41 @@
         <span data-icon="back"></span>Back
       </button>
     </div>
-    <div class="status" id="settingsStatus"></div>
+    <div class="status" id="settingsStatus" aria-live="polite" aria-atomic="true"></div>
     <div class="app-version" id="appVersion"></div>
   </section>
 
   <section id="shortcutsView" hidden>
-    <h2 class="panel-title">Shortcuts</h2>
+    <h2 class="panel-title" tabindex="-1">Shortcuts</h2>
 
     <p class="panel-lead">Click a combination to record a new one. They apply as soon as you save.</p>
 
     <div class="field">
-      <span class="field-label">Open the translator</span>
-      <button type="button" class="btn recorder" id="hotkey"></button>
+      <span class="field-label" id="lbl-hotkey">Open the translator</span>
+      <button type="button" class="btn recorder" id="hotkey" aria-labelledby="lbl-hotkey"></button>
     </div>
 
     <div class="field">
-      <span class="field-label">Translate the selection</span>
-      <button type="button" class="btn recorder" id="selectionHotkey"></button>
+      <span class="field-label" id="lbl-selection-hotkey">Translate the selection</span>
+      <button type="button" class="btn recorder" id="selectionHotkey" aria-labelledby="lbl-selection-hotkey"></button>
       <span class="field-hint">Select text anywhere and the translation pops up at the cursor.</span>
     </div>
 
     <div class="field">
-      <span class="field-label">Translate and replace</span>
-      <button type="button" class="btn recorder" id="replaceHotkey"></button>
+      <span class="field-label" id="lbl-replace-hotkey">Translate and replace</span>
+      <button type="button" class="btn recorder" id="replaceHotkey" aria-labelledby="lbl-replace-hotkey"></button>
       <span class="field-hint">Overwrites the selected text with its translation, in place.</span>
     </div>
 
     <div class="field" id="ocrHotkeyField">
-      <span class="field-label">Translate a region of the screen</span>
-      <button type="button" class="btn recorder" id="ocrHotkey"></button>
+      <span class="field-label" id="lbl-ocr-hotkey">Translate a region of the screen</span>
+      <button type="button" class="btn recorder" id="ocrHotkey" aria-labelledby="lbl-ocr-hotkey"></button>
       <span class="field-hint">Drag a box over anything on screen — images and video included — and Windows reads the text.</span>
     </div>
 
     <div class="field">
-      <span class="field-label">Swap direction</span>
-      <button type="button" class="btn recorder" id="swapHotkey"></button>
+      <span class="field-label" id="lbl-swap-hotkey">Swap direction</span>
+      <button type="button" class="btn recorder" id="swapHotkey" aria-labelledby="lbl-swap-hotkey"></button>
       <span class="field-hint">Works while the translator is focused.</span>
     </div>
 
@@ -197,17 +199,17 @@
         <span data-icon="back"></span>Back
       </button>
     </div>
-    <div class="status" id="shortcutsStatus"></div>
+    <div class="status" id="shortcutsStatus" aria-live="polite" aria-atomic="true"></div>
   </section>
 
   <section id="appearanceView" hidden>
-    <h2 class="panel-title">Appearance</h2>
+    <h2 class="panel-title" tabindex="-1">Appearance</h2>
 
     <label class="field">
       <span class="field-label">Opacity</span>
       <div class="range-row">
         <input type="range" id="opacity" min="0.4" max="1" step="0.01">
-        <output id="opacityVal">100%</output>
+        <output id="opacityVal" for="opacity">100%</output>
       </div>
     </label>
 
@@ -258,7 +260,7 @@
         <span data-icon="back"></span>Back
       </button>
     </div>
-    <div class="status" id="appearanceStatus"></div>
+    <div class="status" id="appearanceStatus" aria-live="polite" aria-atomic="true"></div>
   </section>
 
 </div>

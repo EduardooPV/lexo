@@ -32,14 +32,54 @@ export const THEMES = [
   { name: 'GitHub Light', bg: '#ffffff', accent: '#0969da', text: '#1f2328' }
 ];
 
+function channels(hex) {
+  const value = (hex || '').replace(/^#/, '');
+  if (!/^[\da-f]{6}$/i.test(value)) return [];
+  return [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
+}
+
+function relativeLuminance(hex) {
+  const [r, g, b] = channels(hex).map((channel) => {
+    const x = channel / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 export function readableOn(hex) {
-  const value = (hex || '').replace('#', '');
-  if (value.length < 6) return '#ffffff';
-  const channel = (i) => parseInt(value.substr(i, 2), 16) / 255;
-  const linear = (x) => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
-  const luminance =
-    0.2126 * linear(channel(0)) + 0.7152 * linear(channel(2)) + 0.0722 * linear(channel(4));
+  const luminance = relativeLuminance(hex);
+  if (!Number.isFinite(luminance)) return '#ffffff';
   return 1.05 / (luminance + 0.05) >= (luminance + 0.05) / 0.05 ? '#ffffff' : '#1b1b1f';
+}
+
+export function contrast(hexA, hexB) {
+  const a = relativeLuminance(hexA);
+  const b = relativeLuminance(hexB);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+export function secondaryOn(bg, ink) {
+  const background = channels(bg);
+  const foreground = channels(ink);
+  if (!background.length || !foreground.length) return ink;
+  for (let percent = 50; percent <= 100; percent += 5) {
+    const mixed = background.map((channel, i) =>
+      Math.round(channel + (foreground[i] - channel) * percent / 100).toString(16).padStart(2, '0')
+    );
+    const color = '#' + mixed.join('');
+    if (contrast(bg, color) >= 4.5) return color;
+  }
+  return ink;
+}
+
+export function errorOn(bg) {
+  const colors = ['#ff79c6', '#ff5555', '#d6336c', '#b00040', '#8b0030'];
+  return colors.find((color) => contrast(bg, color) >= 4.5) ||
+    (contrast(bg, '#000000') >= 4.5 ? '#000000' : '#ffffff');
+}
+
+export function focusOn(bg, accent, ink) {
+  return contrast(bg, accent) >= 3 ? accent : ink;
 }
 
 export function applyAppearance(appearance) {
@@ -52,4 +92,9 @@ export function applyAppearance(appearance) {
   root.setProperty('--ui-weight', String(appearance.fontWeight || 400));
   root.setProperty('--app-opacity', String(appearance.opacity));
   root.setProperty('--on-accent', readableOn(appearance.accent));
+  root.setProperty('--gray', secondaryOn(appearance.bg, appearance.text));
+  const error = errorOn(appearance.bg);
+  root.setProperty('--red', error);
+  root.setProperty('--on-error', readableOn(error));
+  root.setProperty('--focus', focusOn(appearance.bg, appearance.accent, appearance.text));
 }

@@ -26,6 +26,9 @@ const GLYPHS = {
   home:
     '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/>' +
     '<path d="M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  languages:
+    '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/>' +
+    '<path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   mic:
     '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/>' +
     '<rect x="9" y="2" width="6" height="13" rx="3"/>',
@@ -71,8 +74,22 @@ export function iconMarkup(name) {
 
 export function hydrate(root = document) {
   root.querySelectorAll('[data-icon]').forEach((node) => {
-    node.innerHTML = iconMarkup(node.dataset.icon);
+    const icon = iconMarkup(node.dataset.icon);
+    if (node.matches('button') && node.textContent.trim()) {
+      node.querySelector('svg.icon')?.remove();
+      node.insertAdjacentHTML('afterbegin', icon);
+      return;
+    }
+    if (node.matches('button:not([aria-label]):not([aria-labelledby])') && node.title) {
+      setLabel(node, node.title);
+    }
+    node.innerHTML = icon;
   });
+}
+
+export function setLabel(node, text) {
+  node.title = text;
+  node.setAttribute('aria-label', text);
 }
 
 export function setIcon(node, name) {

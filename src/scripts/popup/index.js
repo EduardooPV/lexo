@@ -1,5 +1,5 @@
 import * as api from '../shared/api.js';
-import { hydrate, setIcon } from '../shared/icons.js';
+import { hydrate, setIcon, setLabel } from '../shared/icons.js';
 import { guessSpokenLanguage, isSpeechAvailable, loadVoices, speak } from '../shared/speech.js';
 import { DEFAULT_APPEARANCE, applyAppearance } from '../shared/theme.js';
 import { dirBadge, el, out, outputCard, src, status, VIEWS } from './dom.js';
@@ -134,6 +134,7 @@ el('btnRevealKey').addEventListener('click', (event) => {
   const hidden = field.type === 'password';
   field.type = hidden ? 'text' : 'password';
   setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
+  setLabel(event.currentTarget, hidden ? 'Hide the key' : 'Show the key');
 });
 
 RECORDERS.forEach((id) => {
@@ -188,6 +189,7 @@ el('btnRevealWelcomeKey').addEventListener('click', (event) => {
   const hidden = field.type === 'password';
   field.type = hidden ? 'text' : 'password';
   setIcon(event.currentTarget, hidden ? 'eye-off' : 'eye');
+  setLabel(event.currentTarget, hidden ? 'Hide the key' : 'Show the key');
 });
 
 el('btnSkipWelcome').addEventListener('click', () => {

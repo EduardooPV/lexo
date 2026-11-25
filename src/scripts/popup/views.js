@@ -1,10 +1,19 @@
 import * as api from '../shared/api.js';
+import { setErrorStatus } from '../shared/status.js';
 import { applyAppearance } from '../shared/theme.js';
 import { el, src, VIEWS } from './dom.js';
 import { state } from './state.js';
 import { loadHistory } from './history.js';
 import { refreshUsage } from './settings.js';
 import { appearanceToControls, syncThemeSelect } from './appearance.js';
+
+const VIEW_BUTTONS = {
+  main: 'btnHome',
+  history: 'btnHistory',
+  appearance: 'btnAppearance',
+  shortcuts: 'btnShortcuts',
+  settings: 'btnSettings'
+};
 
 // Height the app last asked for, in CSS pixels. A window height that differs
 // from it was set by the user dragging the edge, not by us.
@@ -66,8 +75,8 @@ export function toast(node, text, ms = 2200) {
 }
 
 export function fail(node, text) {
-  node.classList.add('error');
-  node.textContent = text;
+  clearTimeout(node._timer);
+  setErrorStatus(node, text);
   fitWindow();
 }
 
@@ -77,11 +86,21 @@ export function needsWelcome() {
 
 export function showView(name) {
   const view = name === 'main' && needsWelcome() ? 'welcome' : name;
+  if (!Object.hasOwn(VIEWS, view)) return;
   Object.entries(VIEWS).forEach(([key, node]) => { node.hidden = key !== view; });
+  for (const [key, id] of Object.entries(VIEW_BUTTONS)) {
+    const button = el(id);
+    if (key === view) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
 
   if (view === 'main') {
-    src.focus();
+    src.focus({ preventScroll: true });
     src.select();
+  } else if (view === 'welcome') {
+    el('welcomeKey').focus();
+  } else {
+    VIEWS[view].querySelector('.panel-title').focus();
   }
   if (view === 'welcome') {
     el('welcomeStatus').classList.remove('error');

@@ -115,7 +115,7 @@ describe('installing', () => {
 
     expect(el('btnInstallUpdate').disabled).toBe(false);
     expect(el('btnInstallUpdate').textContent).toBe('Update');
-    expect(el('status').textContent).toBe('Could not reach the update server. Try again later.');
+    expect(el('status').textContent).toBe('Error: Could not reach the update server. Try again later.');
     expect(el('status').classList.contains('error')).toBe(true);
   });
 
