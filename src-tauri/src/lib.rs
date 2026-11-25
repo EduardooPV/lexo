@@ -47,6 +47,16 @@ fn run_app() -> tauri::Result<()> {
                 show_popup(app);
             }
         }))
+        // Tauri configures its windows before the application setup callback.
+        // Register state before those windows can emit native events.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("lexo-state")
+                .setup(|app, _api| {
+                    load_state(app);
+                    Ok(())
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -120,8 +130,6 @@ fn run_app() -> tauri::Result<()> {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let handle = app.handle().clone();
-
-            load_state(&handle);
 
             let settings = load_settings(&handle);
             if let Err(error) = register_global_shortcuts(&handle, &settings) {
