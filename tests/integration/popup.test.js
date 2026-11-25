@@ -44,8 +44,8 @@ describe('translating', () => {
 
     expect(el('out').textContent).toBe('translated: preciso revisar isso');
     expect(el('outputCard').hidden).toBe(false);
-    expect(el('dirLabel').textContent).toBe('PT → EN');
-    expect(el('outDir').textContent).toBe('English');
+    expect(el('dirLabel').textContent).toBe('PT → EN-US');
+    expect(el('outDir').textContent).toBe('English (American)');
     expect(el('status').textContent).toBe('');
   });
 
@@ -81,7 +81,7 @@ describe('translating', () => {
     el('btnTranslate').click();
     await flush();
 
-    expect(el('status').textContent).toBe('Add your DeepL API key in Settings to translate.');
+    expect(el('status').textContent).toBe('Error: Add your DeepL API key in Settings to translate.');
     expect(el('status').classList.contains('error')).toBe(true);
   });
 });
@@ -98,20 +98,20 @@ describe('direction badge', () => {
     el('src').value = 'preciso revisar isso';
     el('btnTranslate').click();
     await flush();
-    expect(el('dirLabel').textContent).toBe('PT → EN');
+    expect(el('dirLabel').textContent).toBe('PT → EN-US');
 
     el('dirBadge').click();
     await flush();
-    expect(el('dirLabel').textContent).toBe('EN → PT');
+    expect(el('dirLabel').textContent).toBe('EN → PT-BR');
     expect(el('dirBadge').classList.contains('is-forced')).toBe(true);
 
     el('dirBadge').click();
     await flush();
-    expect(el('dirLabel').textContent).toBe('PT → EN');
+    expect(el('dirLabel').textContent).toBe('PT → EN-US');
 
     el('dirBadge').click();
     await flush();
-    expect(el('dirLabel').textContent).toBe('EN → PT');
+    expect(el('dirLabel').textContent).toBe('EN → PT-BR');
   });
 
   it('pins the direction it shows, and sends it as the target', async () => {
@@ -124,7 +124,7 @@ describe('direction badge', () => {
     await flush();
 
     const last = mock.callsFor('translate').at(-1);
-    expect(last.args.target).toBe('PT');
+    expect(last.args.target).toBe('PT-BR');
   });
 
   it('falls back to Auto once the text no longer matches the result', async () => {
@@ -132,7 +132,7 @@ describe('direction badge', () => {
     el('src').value = 'preciso revisar isso';
     el('btnTranslate').click();
     await flush();
-    expect(el('dirLabel').textContent).toBe('PT → EN');
+    expect(el('dirLabel').textContent).toBe('PT → EN-US');
 
     el('src').value = 'something completely different';
     el('src').dispatchEvent(new Event('input'));
@@ -168,7 +168,7 @@ describe('history', () => {
 
     const items = document.querySelectorAll('.history-item');
     expect(items).toHaveLength(2);
-    expect(items[0].querySelector('.history-pair').textContent).toBe('PT → EN');
+    expect(items[0].querySelector('.history-pair').textContent).toBe('PT → EN-US');
     expect(items[0].querySelector('.history-translated').textContent).toBe(
       'I need to review this pull request'
     );
@@ -229,7 +229,7 @@ describe('history', () => {
     expect(el('mainView').hidden).toBe(false);
     expect(el('src').value).toBe('Preciso revisar esse pull request');
     expect(el('out').textContent).toBe('I need to review this pull request');
-    expect(el('dirLabel').textContent).toBe('PT → EN');
+    expect(el('dirLabel').textContent).toBe('PT → EN-US');
   });
 
   it('routes the row action buttons to the matching command', async () => {
@@ -423,7 +423,7 @@ describe('window sizing', () => {
     el('btnTranslate').click();
     await flush();
 
-    expect(el('status').textContent).toBe('Type something before translating.');
+    expect(el('status').textContent).toBe('Error: Type something before translating.');
     expect(mock.callsFor('resize_window').length).toBeGreaterThan(before);
   });
 

@@ -7,6 +7,9 @@ export const DEFAULT_SETTINGS = {
   autoTranslateClipboard: false,
   shortcutsPaused: false,
   deeplKey: 'test-key-0000:fx',
+  primaryLang: 'PT-BR',
+  secondaryLang: 'EN-US',
+  formality: 'default',
   appearance: {
     opacity: 1,
     bg: '#282a36',
@@ -26,7 +29,7 @@ export function sampleHistory() {
       source: 'Preciso revisar esse pull request',
       translated: 'I need to review this pull request',
       from: 'PT',
-      to: 'EN',
+      to: 'EN-US',
       at: 3,
       pinned: true
     },
@@ -35,7 +38,7 @@ export function sampleHistory() {
       source: 'The build failed on the Windows runner',
       translated: 'O build falhou no runner do Windows',
       from: 'EN',
-      to: 'PT',
+      to: 'PT-BR',
       at: 2,
       pinned: false
     }
@@ -54,6 +57,7 @@ export function createTauriMock(overrides = {}) {
     set_autostart: () => null,
     ocr_available: () => true,
     get_history: () => [],
+    export_history: () => null,
     clear_history: () => [],
     delete_history_entry: () => [],
     toggle_history_pin: () => [],
@@ -63,7 +67,7 @@ export function createTauriMock(overrides = {}) {
     translate: ({ text, target }) => ({
       text: 'translated: ' + text,
       detectedSource: 'PT',
-      target: target || 'EN',
+      target: target || 'EN-US',
       cached: false
     }),
     check_for_update: () => null,

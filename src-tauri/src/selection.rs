@@ -221,7 +221,12 @@ pub(crate) fn replace_selection(app: &AppHandle) {
             return;
         }
 
-        match tauri::async_runtime::block_on(translate_text(&app, captured.text.clone(), None)) {
+        match tauri::async_runtime::block_on(translate_text(
+            &app,
+            captured.text.clone(),
+            None,
+            false,
+        )) {
             Ok(result) => {
                 let _ = app.clipboard().write_text(result.text);
                 std::thread::sleep(Duration::from_millis(80));
@@ -233,6 +238,11 @@ pub(crate) fn replace_selection(app: &AppHandle) {
                 restore_clipboard(&app, &captured.original);
             }
             Err(error) => {
+                let error = if error.starts_with("too_long:") {
+                    "replace_too_long: Selection too long to replace automatically. Use the translate shortcut instead.".into()
+                } else {
+                    error
+                };
                 restore_clipboard(&app, &captured.original);
                 show_mini(
                     &app,

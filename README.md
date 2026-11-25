@@ -5,7 +5,7 @@
 <h1 align="center">Lexo</h1>
 
 <p align="center">
-  A global-hotkey PT ⇄ EN desktop translator. Lives in the system tray and translates text from any app, instantly.
+  A global-hotkey desktop translator. Lives in the system tray and translates text from any app, instantly.
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 📥 **[Download the latest release](https://github.com/EduardooPV/lexo/releases/latest)** — Windows, macOS and Linux.
 
-All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,000 characters/month, no cost). Translation runs in the Rust backend — your key never touches the browser. No telemetry.
+All you need is a free **[DeepL API](https://www.deepl.com/pro-api)** key (500,000 characters/month, no cost). The Rust backend sends your key to DeepL for translation and usage checks. Lexo stores it in your system credential store when available and warns you if it has to use the local settings file. No telemetry.
 
 ## Usage
 
@@ -55,7 +55,7 @@ https://github.com/user-attachments/assets/c490ebe1-7e29-4074-b444-5d663b5d007e
 | **Alt+T**       | Translate the selected text (any app)                |
 | **Alt+Shift+T** | Translate the selection and **replace** it in place  |
 | **Alt+S**       | Select a screen region and translate it via OCR *(Windows)* |
-| **Alt+E**       | Toggle translation direction (PT→EN ⇄ EN→PT)         |
+| **Alt+E**       | Switch between your two preferred target languages         |
 | **Enter**       | Translate                                            |
 | **Esc**         | Close                                                |
 
@@ -66,11 +66,12 @@ https://github.com/user-attachments/assets/c490ebe1-7e29-4074-b444-5d663b5d007e
 - **Selection translation** in a compact bubble next to the cursor — draggable and always kept on screen
 - **Translate and replace**: overwrites the selected text with its translation, in place
 - **Screen-region OCR** *(Windows)*: drag a box over a screenshot, video, or scanned PDF. Fully native — no external service, no bundled model
-- **History** with search, favorites, and copy, plus **local caching** — repeated text costs zero DeepL characters
-- **Usage quota meter** in Settings
-- **Direction decided by DeepL itself** (with an automatic retry if the guessed target is wrong)
+- **Automatic source detection** and over 100 DeepL target languages. The default pair is Brazilian Portuguese and American English. Select a different pair in Settings or choose a target for a single translation.
+- **Formality** preferences for languages that support them
+- **Optional translation history** with search, favorites, copy, and JSON or CSV export. Local caching reuses matching translations.
+- **Monthly quota** in the popup and Settings, with a system notification at 80% and confirmation before translating more than 5,000 characters
 - **Pause shortcuts** from the tray, to avoid conflicts with games and other apps
-- **Text-to-speech** and **voice input** in both languages
+- **Text-to-speech and voice input** using the voices and speech recognition available on your system
 - **Customizable theme** — colors, opacity, and font
 
 ## Platform notes
@@ -88,16 +89,16 @@ This is normal for a small open-source project without a paid code-signing certi
 ```bash
 git clone https://github.com/EduardooPV/lexo.git
 cd lexo
-npm install
+npm ci
 npm run dev
 npm run build
 ```
 
-`npm install` only installs `@tauri-apps/cli`; Rust dependencies come from Cargo. `npm run dev` runs `tauri dev` (hot-reloads the frontend, rebuilds Rust on change); `npm run build` produces your platform's native installer.
+`npm ci` installs the Tauri CLI and frontend test tools. Rust dependencies come from Cargo. `npm run dev` runs `tauri dev` (hot-reloads the frontend, rebuilds Rust on change); `npm run build` produces your platform's native installer.
 
-Backend checks (inside `src-tauri/`): `cargo check`, `cargo clippy`, `cargo fmt`.
+Run `npm test` from the root. In `src-tauri/`, run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test`.
 
-**Prerequisites (Windows, the primary dev platform):** Rust (MSVC toolchain), the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), and Node 16+. For macOS/Linux, follow Tauri's own [prerequisites](https://tauri.app/start/prerequisites/) for your platform — see the exact packages used in CI in [`.github/workflows/build.yml`](.github/workflows/build.yml).
+**Prerequisites (Windows, the primary dev platform):** Rust (MSVC toolchain), the [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022), and Node 20.19+ on the 20.x line or a supported newer release. For macOS/Linux, follow Tauri's own [prerequisites](https://tauri.app/start/prerequisites/) for your platform — see the exact packages used in CI in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 `.github/workflows/build.yml` builds Windows, macOS, and Linux under the same release tag on every push to `main`, and **bumps the version automatically** — only after all three platforms build successfully.
 

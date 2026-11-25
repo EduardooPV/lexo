@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use tauri::{AppHandle, Manager};
 
-use crate::paths::{cache_path, write_json};
+use crate::persist::{self, Kind};
 use crate::state::AppState;
 
 const CACHE_LIMIT: usize = 400;
@@ -13,61 +14,167 @@ pub(crate) struct CacheEntry {
     pub(crate) detected: String,
 }
 
-fn cache_key(text: &str, target: &str) -> String {
-    format!("{target}\u{1}{text}")
+#[derive(Default)]
+pub(crate) struct Cache {
+    map: HashMap<String, CacheEntry>,
+    order: VecDeque<String>,
 }
 
-pub(crate) fn cache_lookup(app: &AppHandle, text: &str, target: &str) -> Option<CacheEntry> {
-    let key = cache_key(text, target);
+impl From<Vec<CacheEntry>> for Cache {
+    fn from(entries: Vec<CacheEntry>) -> Self {
+        let mut cache = Self::default();
+        for entry in entries {
+            cache.insert(entry);
+        }
+        cache
+    }
+}
+
+impl Cache {
+    fn touch(&mut self, key: &str) {
+        if let Some(index) = self.order.iter().position(|item| item == key) {
+            self.order.remove(index);
+        }
+        self.order.push_back(key.to_owned());
+    }
+
+    fn lookup(&mut self, key: &str) -> Option<CacheEntry> {
+        let hit = self.map.get(key)?.clone();
+        self.touch(key);
+        Some(hit)
+    }
+
+    fn insert(&mut self, entry: CacheEntry) {
+        self.touch(&entry.key);
+        self.map.insert(entry.key.clone(), entry);
+        if self.order.len() > CACHE_LIMIT {
+            if let Some(oldest) = self.order.pop_front() {
+                self.map.remove(&oldest);
+            }
+        }
+    }
+
+    pub(crate) fn snapshot(&self) -> Vec<CacheEntry> {
+        self.order
+            .iter()
+            .filter_map(|key| self.map.get(key))
+            .cloned()
+            .collect()
+    }
+}
+
+fn cache_key(text: &str, target: &str, formality: &str) -> String {
+    let normalized = text.replace("\r\n", "\n");
+    let mut key = format!("v3\u{1}{target}\u{1}{formality}\u{1}");
+    let mut in_space = false;
+    for ch in normalized.trim().chars() {
+        let space = matches!(ch, ' ' | '\t');
+        if !space || !in_space {
+            key.push(if space { ' ' } else { ch });
+        }
+        in_space = space;
+    }
+    key
+}
+
+pub(crate) fn cache_lookup(
+    app: &AppHandle,
+    text: &str,
+    target: &str,
+    formality: &str,
+) -> Option<CacheEntry> {
     let state = app.state::<AppState>();
-    let cache = state.cache.lock().ok()?;
-    cache.iter().find(|entry| entry.key == key).cloned()
+    let mut cache = state.cache.lock().ok()?;
+    let hit = cache.lookup(&cache_key(text, target, formality))?;
+    persist::schedule(app, Kind::Cache);
+    Some(hit)
 }
 
 pub(crate) fn cache_store(
     app: &AppHandle,
     text: &str,
     target: &str,
+    formality: &str,
     translated: &str,
     detected: &str,
 ) {
-    let key = cache_key(text, target);
     let state = app.state::<AppState>();
     let Ok(mut cache) = state.cache.lock() else {
         return;
     };
-    cache.retain(|entry| entry.key != key);
-    cache.push(CacheEntry {
-        key,
+    cache.insert(CacheEntry {
+        key: cache_key(text, target, formality),
         text: translated.to_string(),
         detected: detected.to_string(),
     });
-    while cache.len() > CACHE_LIMIT {
-        cache.remove(0);
-    }
-    let snapshot = cache.clone();
-    drop(cache);
-    write_json(&cache_path(app), &snapshot);
+    persist::schedule(app, Kind::Cache);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    mod cache_key {
-        use super::*;
-
-        #[test]
-        fn the_target_is_part_of_the_key() {
-            assert_ne!(cache_key("hello", "EN"), cache_key("hello", "PT"));
+    fn entry(index: usize) -> CacheEntry {
+        CacheEntry {
+            key: index.to_string(),
+            text: format!("Translation {index}"),
+            detected: "PT".into(),
         }
+    }
 
-        #[test]
-        fn the_separator_is_a_control_char_so_keys_cannot_collide() {
-            let key = cache_key("hello", "EN");
-            assert!(key.contains('\u{1}'));
-            assert!(key.starts_with("EN"));
-            assert!(key.ends_with("hello"));
-        }
+    #[test]
+    fn normalises_horizontal_whitespace_without_joining_paragraphs() {
+        assert_eq!(
+            cache_key("  a \t b\r\n", "EN-US", "default"),
+            cache_key("a b", "EN-US", "default")
+        );
+        assert_eq!(
+            cache_key("a\r\n\r\nb", "EN-US", "default"),
+            cache_key("a\n\nb", "EN-US", "default")
+        );
+        assert_ne!(
+            cache_key("a\n\nb", "EN-US", "default"),
+            cache_key("a b", "EN-US", "default")
+        );
+        assert_ne!(
+            cache_key("hello", "EN-US", "default"),
+            cache_key("hello", "PT-BR", "default")
+        );
+        assert_ne!(cache_key("hello", "EN-US", "default"), "EN\u{1}hello");
+    }
+
+    #[test]
+    fn each_formality_has_a_distinct_key() {
+        assert_ne!(
+            cache_key("hello", "DE", "more"),
+            cache_key("hello", "DE", "less")
+        );
+        assert_ne!(
+            cache_key("hello", "DE", "more"),
+            cache_key("hello", "DE", "default")
+        );
+    }
+
+    #[test]
+    fn cache_hits_protect_entries_from_eviction() {
+        let mut cache = Cache::from((0..CACHE_LIMIT).map(entry).collect::<Vec<_>>());
+        assert!(cache.lookup("0").is_some());
+        cache.insert(entry(CACHE_LIMIT));
+        assert_eq!(cache.snapshot().len(), CACHE_LIMIT);
+        assert!(cache.lookup("1").is_none());
+        assert!(cache.lookup("0").is_some());
+    }
+
+    #[test]
+    fn snapshots_preserve_the_lru_order_when_reloaded() {
+        let mut cache = Cache::from(vec![entry(1), entry(2), entry(3)]);
+        cache.lookup("1").unwrap();
+        let restored = Cache::from(cache.snapshot());
+        let keys: Vec<_> = restored
+            .snapshot()
+            .into_iter()
+            .map(|item| item.key)
+            .collect();
+        assert_eq!(keys, ["2", "3", "1"]);
     }
 }

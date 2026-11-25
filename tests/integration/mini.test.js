@@ -10,7 +10,7 @@ describe('bubble content', () => {
     expect(el('srcText').textContent).toBe('preciso revisar isso');
     expect(el('outText').textContent).toBe('translated: preciso revisar isso');
     expect(el('srcLang').textContent).toBe('Portuguese');
-    expect(el('outLang').textContent).toBe('English');
+    expect(el('outLang').textContent).toBe('English (American)');
     expect(el('miniStatus').textContent).toBe('');
   });
 
@@ -72,11 +72,11 @@ describe('empty and error states', () => {
 
     await mock.emit('mini-translate', { text: '', origin: 'selection' });
     await flush();
-    expect(el('miniStatus').textContent).toBe('No text selected — nothing was copied.');
+    expect(el('miniStatus').textContent).toBe('Error: No text selected — nothing was copied.');
 
     await mock.emit('mini-translate', { text: '', origin: 'ocr' });
     await flush();
-    expect(el('miniStatus').textContent).toBe('No text found in that region.');
+    expect(el('miniStatus').textContent).toBe('Error: No text found in that region.');
   });
 
   it('never spends a translation on an empty payload', async () => {
@@ -111,7 +111,7 @@ describe('empty and error states', () => {
 
     expect(el('srcText').textContent).toBe('algo');
     expect(el('outText').textContent).toBe('');
-    expect(el('miniStatus').textContent).toBe('DeepL monthly character quota reached.');
+    expect(el('miniStatus').textContent).toBe('Error: DeepL monthly character quota reached.');
   });
 });
 

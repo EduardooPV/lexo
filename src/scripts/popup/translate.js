@@ -1,53 +1,95 @@
 import * as api from '../shared/api.js';
+import { setLabel } from '../shared/icons.js';
+import { baseOf, languageName } from '../shared/languages.js';
 import { dirBadge, dirLabel, el, out, outputCard, src, status } from './dom.js';
-import { LANGUAGE_NAMES, state } from './state.js';
+import { state } from './state.js';
 import { fail, fitWindow } from './views.js';
 
+let pendingConfirmation = null;
+let latestRequest = 0;
+
 export function updateBadge() {
+  const { primaryLang, secondaryLang, swapHotkey } = state.settings;
   if (state.forcedTarget) {
-    dirLabel.textContent = state.forcedTarget === 'EN' ? 'PT → EN' : 'EN → PT';
-    dirBadge.title = `Pinned direction — click or press ${state.settings.swapHotkey} to change`;
+    const from = state.forcedTarget === primaryLang ? secondaryLang
+      : state.forcedTarget === secondaryLang ? primaryLang : state.lastResult?.detectedSource;
+    dirLabel.textContent = `${baseOf(from) || '?'} → ${state.forcedTarget}`;
   } else if (state.lastResult) {
     dirLabel.textContent = `${state.lastResult.detectedSource || '?'} → ${state.lastResult.target}`;
-    dirBadge.title = `Detected automatically — click or press ${state.settings.swapHotkey} to pin a direction`;
   } else {
     dirLabel.textContent = 'Auto';
-    dirBadge.title = `Detected automatically — click or press ${state.settings.swapHotkey} to pin a direction`;
   }
+  const hint = state.forcedTarget
+    ? `pinned direction — click or press ${swapHotkey} to change`
+    : `detected automatically — click or press ${swapHotkey} to pin a direction`;
+  setLabel(dirBadge, `${dirLabel.textContent}: ${hint}`);
   dirBadge.classList.toggle('is-forced', Boolean(state.forcedTarget));
+  el('targetSelect').value = state.forcedTarget || '';
 }
 
 export function cycleDirection() {
-  const shown = state.forcedTarget || (state.lastResult && state.lastResult.target) || 'EN';
-  state.forcedTarget = shown === 'EN' ? 'PT' : 'EN';
+  const { primaryLang, secondaryLang } = state.settings;
+  const shown = state.forcedTarget || state.lastResult?.target || secondaryLang;
+  selectTarget(shown === primaryLang ? secondaryLang : primaryLang);
+}
+
+export function selectTarget(target) {
+  state.forcedTarget = target || null;
+  resetLongTextConfirmation();
   updateBadge();
   if (!outputCard.hidden && src.value.trim()) translate();
 }
 
-export async function translate() {
+export function resetLongTextConfirmation() {
+  if (!pendingConfirmation) return;
+  pendingConfirmation = null;
+  el('btnTranslate').textContent = 'Translate';
+  status.textContent = '';
+  fitWindow();
+}
+
+export async function translate(allowConfirmation = false) {
   const text = src.value.trim();
+  const target = state.forcedTarget;
   if (!text) {
     fail(status, 'Type something before translating.');
-    fitWindow();
     return;
   }
 
+  const confirmed = allowConfirmation && pendingConfirmation?.text === text &&
+    pendingConfirmation.target === target;
+  const request = ++latestRequest;
+  resetLongTextConfirmation();
+  clearTimeout(status._timer);
   status.classList.remove('error');
   status.textContent = 'Translating…';
-  el('btnTranslate').disabled = true;
+  const button = el('btnTranslate');
+  button.disabled = true;
+  const isCurrent = () => src.value.trim() === text && state.forcedTarget === target;
 
   try {
-    const result = await api.translate(text, state.forcedTarget);
+    const result = await api.translate(text, target, confirmed);
+    if (request !== latestRequest || !isCurrent()) return;
     state.lastResult = { ...result, sourceText: text };
-    out.textContent = result.text;
     outputCard.hidden = false;
-    el('outDir').textContent = LANGUAGE_NAMES[result.target] || result.target;
+    out.textContent = result.text;
+    el('outDir').textContent = languageName(result.target);
     status.textContent = '';
     updateBadge();
   } catch (error) {
-    fail(status, api.describeError(error));
+    if (request !== latestRequest || !isCurrent()) return;
+    if (api.longTextLength(error) !== null) {
+      pendingConfirmation = { text, target };
+      status.textContent = api.describeError(error);
+      button.textContent = 'Translate anyway';
+    } else {
+      fail(status, api.describeError(error));
+    }
   } finally {
-    el('btnTranslate').disabled = false;
-    fitWindow();
+    if (request === latestRequest) {
+      if (!isCurrent() && status.textContent === 'Translating…') status.textContent = '';
+      button.disabled = false;
+      fitWindow();
+    }
   }
 }

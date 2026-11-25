@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { hydrate, iconMarkup, setIcon } from '../../src/scripts/shared/icons.js';
+import { hydrate, iconMarkup, setIcon, setLabel } from '../../src/scripts/shared/icons.js';
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -14,7 +14,7 @@ describe('iconMarkup', () => {
   });
 
   it('draws every glyph on the same grid and stroke so they look like one family', () => {
-    for (const name of ['copy', 'close', 'search', 'star', 'trash', 'scan', 'swap']) {
+    for (const name of ['copy', 'close', 'search', 'star', 'trash', 'scan', 'swap', 'languages']) {
       const markup = iconMarkup(name);
       expect(markup, name).toContain('viewBox="0 0 24 24"');
       expect(markup, name).toContain('stroke-width="2"');
@@ -65,6 +65,24 @@ describe('hydrate', () => {
     document.body.innerHTML = '<button data-icon="nope"></button>';
     expect(() => hydrate()).not.toThrow();
     expect(document.querySelector('[data-icon]').innerHTML).toBe('');
+  });
+
+  it('uses tooltips to name icon-only buttons and preserves other labels', () => {
+    document.body.innerHTML = `
+      <button data-icon="copy" title="Copy"></button>
+      <button data-icon="trash" title="Remove" aria-label="Delete"></button>
+      <button data-icon="check" title="Done">Confirm</button>
+    `;
+    hydrate();
+    hydrate();
+    const [copy, remove, confirm] = document.querySelectorAll('button');
+    expect(copy.getAttribute('aria-label')).toBe('Copy');
+    expect(remove.getAttribute('aria-label')).toBe('Delete');
+    expect(confirm.getAttribute('aria-label')).toBeNull();
+    expect(confirm.textContent).toBe('Confirm');
+    expect(confirm.querySelectorAll('svg')).toHaveLength(1);
+    setLabel(remove, 'Remove translation');
+    expect(remove.getAttribute('aria-label')).toBe(remove.title);
   });
 });
 

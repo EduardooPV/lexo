@@ -6,7 +6,8 @@ export const getSettings = () => invoke('get_settings');
 export const saveSettings = (settings) => invoke('save_settings', { settings });
 export const updateShortcuts = () => invoke('update_shortcuts');
 
-export const translate = (text, target = null) => invoke('translate', { text, target });
+export const translate = (text, target = null, confirmed = false) =>
+  invoke('translate', { text, target, confirmed });
 export const getUsage = () => invoke('get_usage');
 export const verifyDeeplKey = (key) => invoke('verify_deepl_key', { key });
 export const openDeeplSignup = () => invoke('open_deepl_signup');
@@ -15,6 +16,7 @@ export const getHistory = () => invoke('get_history');
 export const clearHistory = () => invoke('clear_history');
 export const deleteHistoryEntry = (id) => invoke('delete_history_entry', { id });
 export const toggleHistoryPin = (id) => invoke('toggle_history_pin', { id });
+export const exportHistory = (format) => invoke('export_history', { format });
 
 export const setClipboard = (text) => invoke('set_clipboard', { text });
 export const hidePopup = () => invoke('hide_popup');
@@ -48,13 +50,25 @@ const MESSAGES = [
   ['updater_error', 'Could not reach the update server. Try again later.'],
   ['api_error', "Couldn't translate that text. Try rephrasing."],
   ['decode_error', 'Unexpected response from DeepL.'],
+  ['too_long', 'This text has {N} characters and counts toward your DeepL quota. Translate anyway?'],
+  ['too_large', 'That text is too long for a single request. Split it into smaller parts.'],
   ['empty', 'Nothing to translate.']
 ];
+
+export function longTextLength(error) {
+  const match = String(error ?? '').match(/^too_long:\s*(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
 
 export function describeError(error) {
   const raw = String(error ?? '');
 
+  const length = longTextLength(raw);
   for (const [prefix, message] of MESSAGES) {
+    if (prefix === 'too_long') {
+      if (length !== null) return message.replace('{N}', String(length));
+      continue;
+    }
     if (raw.includes(prefix)) return message;
   }
   if (raw.includes('limit:')) return raw.replace(/^.*limit:\s*/, '');

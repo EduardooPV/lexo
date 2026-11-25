@@ -200,14 +200,6 @@ pub(crate) fn guess_target(text: &str) -> &'static str {
     }
 }
 
-pub(crate) fn normalize_target(target: &str) -> String {
-    if target.to_uppercase().starts_with("PT") {
-        "PT".to_string()
-    } else {
-        "EN".to_string()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,25 +234,6 @@ mod tests {
             for text in ["", " ", "123", "!@#$", "\n\t"] {
                 let _ = guess_target(text);
             }
-        }
-    }
-
-    mod normalize_target {
-        use super::*;
-
-        #[test]
-        fn accepts_either_case_and_regional_variants() {
-            assert_eq!(normalize_target("PT"), "PT");
-            assert_eq!(normalize_target("pt"), "PT");
-            assert_eq!(normalize_target("pt-BR"), "PT");
-            assert_eq!(normalize_target("EN"), "EN");
-            assert_eq!(normalize_target("en-US"), "EN");
-        }
-
-        #[test]
-        fn anything_unrecognised_falls_back_to_english() {
-            assert_eq!(normalize_target("klingon"), "EN");
-            assert_eq!(normalize_target(""), "EN");
         }
     }
 }

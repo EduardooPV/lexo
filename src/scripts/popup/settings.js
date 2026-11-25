@@ -1,4 +1,5 @@
 import * as api from '../shared/api.js';
+import { LANGUAGES, baseOf } from '../shared/languages.js';
 import { DEFAULT_APPEARANCE, applyAppearance } from '../shared/theme.js';
 import { el, status } from './dom.js';
 import { DEFAULT_SETTINGS, state } from './state.js';
@@ -13,20 +14,57 @@ function format(value) {
   return String(value);
 }
 
+const QUOTA_WARNING_PERCENT = 80;
+
+function usagePercent(usage) {
+  return usage.characterLimit > 0 ? (usage.characterCount / usage.characterLimit) * 100 : 0;
+}
+
+export function renderUsageHint(usage) {
+  const hint = el('usageHint');
+  const visible = Boolean(state.settings.deeplKey?.trim() && usage?.characterLimit > 0);
+  const percent = visible ? usagePercent(usage) : 0;
+  hint.hidden = !visible;
+  hint.textContent = visible ? `${Math.floor(percent)}% of your monthly quota used` : '';
+  hint.classList.toggle('is-high', visible && percent >= QUOTA_WARNING_PERCENT);
+  fitWindow();
+}
+
+export function buildLanguageSelects() {
+  const languages = [...LANGUAGES].sort((a, b) => a.name.localeCompare(b.name, 'en'));
+  for (const id of ['primaryLang', 'secondaryLang', 'targetSelect']) {
+    el(id).append(...languages.map(({ code, name }) => new Option(name, code)));
+  }
+  applyLanguageSettings(DEFAULT_SETTINGS);
+}
+
+export function applyLanguageSettings(settings) {
+  el('primaryLang').value = settings.primaryLang;
+  el('secondaryLang').value = settings.secondaryLang;
+  el('formality').value = settings.formality;
+}
+
 export async function refreshUsage() {
   const box = el('usage');
   if (!el('deeplKey').value.trim()) {
     box.hidden = true;
+    renderUsageHint(null);
     return;
   }
   try {
     const usage = await api.getUsage();
-    const percent = usage.characterLimit ? (usage.characterCount / usage.characterLimit) * 100 : 0;
-    el('usageFill').style.width = Math.min(percent, 100) + '%';
-    el('usageFill').classList.toggle('is-high', percent >= 85);
+    const percent = usagePercent(usage);
+    const fill = el('usageFill');
+    const progress = fill.parentElement;
+    fill.style.width = Math.min(percent, 100) + '%';
+    fill.classList.toggle('is-high', percent >= QUOTA_WARNING_PERCENT);
+    progress.setAttribute('aria-valuemin', '0');
+    progress.setAttribute('aria-valuemax', String(usage.characterLimit || 100));
+    progress.setAttribute('aria-valuenow', String(Math.min(usage.characterCount, usage.characterLimit)));
     el('usageText').textContent =
       `${format(usage.characterCount)} / ${format(usage.characterLimit)} characters this month`;
     box.hidden = false;
+    renderUsageHint(usage);
   } catch (_) {
     box.hidden = true;
   }
@@ -45,6 +83,8 @@ export async function loadSettings() {
 
   el('deeplKey').value = state.settings.deeplKey || '';
   el('autoTranslateClipboard').checked = state.settings.autoTranslateClipboard === true;
+  el('keepHistory').checked = state.settings.keepHistory !== false;
+  applyLanguageSettings(state.settings);
   try { el('autostart').checked = await api.getAutostart(); } catch (_) {}
   try { el('appVersion').textContent = `Lexo ${await api.appVersion()}`; } catch (_) {}
 
@@ -67,6 +107,14 @@ export async function loadSettings() {
 }
 
 export async function saveAll(statusNode) {
+  const languageStatus = el('settingsStatus');
+  const primaryLang = el('primaryLang').value;
+  const secondaryLang = el('secondaryLang').value;
+  if (!primaryLang || !secondaryLang || baseOf(primaryLang) === baseOf(secondaryLang)) {
+    if (statusNode !== languageStatus) showView('settings');
+    fail(languageStatus, 'Choose two different languages.');
+    return;
+  }
   const updated = {
     hotkey: el('hotkey').dataset.value,
     swapHotkey: el('swapHotkey').dataset.value,
@@ -74,27 +122,35 @@ export async function saveAll(statusNode) {
     replaceHotkey: el('replaceHotkey').dataset.value,
     ocrHotkey: el('ocrHotkey').dataset.value,
     autoTranslateClipboard: el('autoTranslateClipboard').checked,
+    keepHistory: el('keepHistory').checked,
     deeplKey: el('deeplKey').value.trim(),
+    primaryLang,
+    secondaryLang,
+    formality: el('formality').value,
     appearance: appearanceFromControls()
   };
 
   try {
-    await api.saveSettings(updated);
+    const warning = await api.saveSettings(updated);
     try { await api.setAutostart(el('autostart').checked); } catch (_) {}
 
+    const keyChanged = updated.deeplKey !== state.settings.deeplKey;
     state.settings = { ...state.settings, ...updated };
+    if (keyChanged) renderUsageHint(null);
     applyAppearance(state.settings.appearance);
     updateBadge();
 
     try {
       await api.updateShortcuts();
     } catch (error) {
-      fail(statusNode, 'Saved, but a shortcut could not be registered: ' + api.describeError(error));
+      const shortcutError = 'Saved, but a shortcut could not be registered: ' + api.describeError(error);
+      fail(statusNode, warning ? shortcutError + ' ' + warning : shortcutError);
       return;
     }
 
     showView('main');
-    toast(status, 'Saved!');
+    const destination = needsWelcome() ? el('welcomeStatus') : status;
+    toast(destination, warning || 'Saved!', warning ? 6000 : undefined);
   } catch (error) {
     fail(statusNode, 'Error saving: ' + api.describeError(error));
   }
