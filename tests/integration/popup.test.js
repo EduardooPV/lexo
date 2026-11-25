@@ -81,7 +81,7 @@ describe('translating', () => {
     el('btnTranslate').click();
     await flush();
 
-    expect(el('status').textContent).toBe('Add your DeepL API key in Settings to translate.');
+    expect(el('status').textContent).toBe('Error: Add your DeepL API key in Settings to translate.');
     expect(el('status').classList.contains('error')).toBe(true);
   });
 });
@@ -423,7 +423,7 @@ describe('window sizing', () => {
     el('btnTranslate').click();
     await flush();
 
-    expect(el('status').textContent).toBe('Type something before translating.');
+    expect(el('status').textContent).toBe('Error: Type something before translating.');
     expect(mock.callsFor('resize_window').length).toBeGreaterThan(before);
   });
 

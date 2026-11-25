@@ -1,5 +1,5 @@
 import * as api from '../shared/api.js';
-import { hydrate } from '../shared/icons.js';
+import { hydrate, setLabel } from '../shared/icons.js';
 import { el } from './dom.js';
 import { state } from './state.js';
 import { fitWindow } from './views.js';
@@ -9,7 +9,7 @@ function historyButton(icon, title, action, active) {
   button.className = 'btn btn--subtle btn--sm btn--icon' + (active ? ' is-pinned' : '');
   button.dataset.icon = icon;
   button.dataset.action = action;
-  button.title = title;
+  setLabel(button, title);
   return button;
 }
 

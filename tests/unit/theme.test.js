@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_APPEARANCE, THEMES, applyAppearance, clampZoom, readableOn } from '../../src/scripts/shared/theme.js';
+import {
+  DEFAULT_APPEARANCE, THEMES, applyAppearance, clampZoom, contrast, errorOn, focusOn,
+  readableOn, secondaryOn
+} from '../../src/scripts/shared/theme.js';
 
 describe('readableOn', () => {
   it('picks dark text over light backgrounds and light text over dark ones', () => {
@@ -23,6 +26,28 @@ describe('readableOn', () => {
   });
 });
 
+describe('accessible contrast', () => {
+  it('computes the WCAG contrast ratio', () => {
+    expect(contrast('#000000', '#ffffff')).toBe(21);
+    expect(contrast('#abcdef', '#abcdef')).toBe(1);
+  });
+
+  it.each(THEMES)('meets text and focus thresholds for $name', ({ bg, text, accent }) => {
+    expect(contrast(bg, text)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(bg, secondaryOn(bg, text))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(bg, errorOn(bg))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(bg, focusOn(bg, accent, text))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('uses the first qualifying mixture and falls back to the supplied text color', () => {
+    expect(secondaryOn('#282a36', '#f8f8f2')).toBe('#909194');
+    expect(secondaryOn('#000000', '#222222')).toBe('#222222');
+    expect(focusOn('#ffffff', '#eeeeee', '#222222')).toBe('#222222');
+    expect(focusOn('#ffffff', '#000000', '#222222')).toBe('#000000');
+    expect(contrast('#787878', errorOn('#787878'))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('applyAppearance', () => {
   it('writes every themed value onto the document root', () => {
     applyAppearance({
@@ -39,6 +64,9 @@ describe('applyAppearance', () => {
     expect(root.getPropertyValue('--ink')).toBe('#fafafa');
     expect(root.getPropertyValue('--ui-font')).toBe('Arial, sans-serif');
     expect(root.getPropertyValue('--app-opacity')).toBe('0.8');
+    expect(root.getPropertyValue('--gray')).toBe(secondaryOn('#101010', '#fafafa'));
+    expect(root.getPropertyValue('--red')).toBe(errorOn('#101010'));
+    expect(root.getPropertyValue('--focus')).toBe('#00ff00');
   });
 
   it('derives the on-accent colour instead of trusting the caller', () => {

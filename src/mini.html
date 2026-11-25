@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="styles/mini.css">
 </head>
 <body>
-<div id="bubble" data-tauri-drag-region="deep">
+<div id="bubble" data-tauri-drag-region="deep" role="region" aria-label="Translation" tabindex="-1">
 
   <div class="block block--src" id="srcBlock">
     <div class="block-head">
@@ -31,10 +31,10 @@
         <button class="btn btn--subtle btn--xs btn--icon" id="copyOut" data-icon="copy" title="Copy the translation"></button>
       </div>
     </div>
-    <div class="txt" id="outText" data-tauri-drag-region="false"></div>
+    <div class="txt" id="outText" data-tauri-drag-region="false" aria-live="polite"></div>
   </div>
 
-  <div class="status" id="miniStatus" data-tauri-drag-region="false"></div>
+  <div class="status" id="miniStatus" data-tauri-drag-region="false" aria-live="polite" aria-atomic="true"></div>
 </div>
 <script type="module" src="scripts/mini.js"></script>
 </body>
