@@ -6,6 +6,8 @@ mod history;
 mod language;
 mod ocr;
 mod paths;
+mod persist;
+mod secrets;
 mod selection;
 mod settings;
 mod shortcuts;
@@ -16,7 +18,7 @@ mod windows;
 
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, WindowEvent,
+    Manager, RunEvent, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
@@ -24,7 +26,7 @@ use tauri_plugin_global_shortcut::{Shortcut, ShortcutState};
 use crate::autostart::seed_or_refresh_autostart;
 use crate::capture::start_region_capture;
 use crate::selection::{replace_selection, translate_selection};
-use crate::settings::{load_settings, migrate_settings, persist_settings, Settings};
+use crate::settings::{load_settings, update_popup_position, Settings};
 use crate::shortcuts::{register_global_shortcuts, set_shortcuts_paused};
 use crate::state::{load_state, AppState};
 use crate::tray::{build_tray_menu, open_view};
@@ -33,13 +35,28 @@ use crate::windows::{show_popup, toggle_popup};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_app().expect("error while running tauri application");
+}
+
+fn run_app() -> tauri::Result<()> {
     tauri::Builder::default()
         // Must be the first plugin: a second launch (Windows key + "lexo")
         // hands over to the running instance instead of opening another one.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_popup(app);
+            if app.try_state::<AppState>().is_some() {
+                show_popup(app);
+            }
         }))
-        .manage(AppState::default())
+        // Tauri configures its windows before the application setup callback.
+        // Register state before those windows can emit native events.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("lexo-state")
+                .setup(|app, _api| {
+                    load_state(app);
+                    Ok(())
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -114,9 +131,6 @@ pub fn run() {
 
             let handle = app.handle().clone();
 
-            load_state(&handle);
-            migrate_settings(&handle);
-
             let settings = load_settings(&handle);
             if let Err(error) = register_global_shortcuts(&handle, &settings) {
                 eprintln!("Shortcut registration issue: {error}");
@@ -165,14 +179,18 @@ pub fn run() {
                 api.prevent_close();
             }
             WindowEvent::Moved(position) if window.label() == "popup" => {
-                let app = window.app_handle();
-                let mut settings = load_settings(app);
-                settings.popup_x = Some(position.x);
-                settings.popup_y = Some(position.y);
-                let _ = persist_settings(app, &settings);
+                update_popup_position(window.app_handle(), position.x, position.y);
             }
             _ => {}
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())?
+        .run(|app, event| match event {
+            RunEvent::ExitRequested { .. } => persist::flush(app),
+            RunEvent::Exit => {
+                persist::flush(app);
+                persist::stop(app);
+            }
+            _ => {}
+        });
+    Ok(())
 }

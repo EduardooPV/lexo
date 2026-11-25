@@ -57,9 +57,7 @@ pub fn get_shortcuts_paused(app: AppHandle) -> bool {
 
 #[tauri::command]
 pub fn set_shortcuts_paused(app: AppHandle, paused: bool) -> Result<(), String> {
-    let mut settings = load_settings(&app);
-    settings.shortcuts_paused = paused;
-    persist_settings(&app, &settings)?;
+    let settings = persist_settings(&app, |settings| settings.shortcuts_paused = paused)?;
     refresh_tray(&app, paused);
     register_global_shortcuts(&app, &settings)
 }

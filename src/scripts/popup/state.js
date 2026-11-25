@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = {
   replaceHotkey: 'Alt+Shift+T',
   ocrHotkey: 'Alt+S',
   autoTranslateClipboard: false,
+  keepHistory: true,
   deeplKey: '',
   appearance: { ...DEFAULT_APPEARANCE }
 };

@@ -109,6 +109,7 @@ pub(crate) fn show_popup(app: &AppHandle) {
         String::new()
     };
     let _ = win.emit("popup-shown", serde_json::json!({ "clipboard": clipboard }));
+    crate::deepl::warm_up(app);
 }
 
 pub(crate) fn toggle_popup(app: &AppHandle) {

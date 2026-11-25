@@ -3,7 +3,7 @@ import { ZOOM_STEP, clampZoom } from '../shared/theme.js';
 import { state } from './state.js';
 import { refitAfterZoom } from './views.js';
 
-export async function setZoom(factor) {
+export async function setZoom(factor, { persist = true } = {}) {
   const next = clampZoom(factor);
   const appearance = state.settings.appearance;
   if (next === (appearance.zoom || 1)) return;
@@ -13,7 +13,9 @@ export async function setZoom(factor) {
   try { await api.setZoom(next); } catch (_) {}
   refitAfterZoom(cssHeight);
 
-  try { await api.saveSettings(state.settings); } catch (_) {}
+  if (persist) {
+    try { await api.saveSettings(state.settings); } catch (_) {}
+  }
 }
 
 // Ctrl + / Ctrl = zoom in, Ctrl - zoom out, Ctrl 0 reset. Returns true when the

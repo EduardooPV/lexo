@@ -1,11 +1,12 @@
 use serde::Serialize;
-use std::time::Duration;
-use tauri::AppHandle;
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Manager};
 
 use crate::cache::{cache_lookup, cache_store};
 use crate::history::history_push;
 use crate::language::{guess_target, normalize_target};
 use crate::settings::load_settings;
+use crate::state::AppState;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -91,8 +92,7 @@ pub(crate) async fn translate_text(
         return Err("no_key: Add your DeepL API key in Settings to translate.".to_string());
     }
 
-    let text = text.trim().to_string();
-    if text.is_empty() {
+    if text.trim().is_empty() {
         return Err("empty: Nothing to translate.".to_string());
     }
 
@@ -110,8 +110,9 @@ pub(crate) async fn translate_text(
         });
     }
 
-    let client = reqwest::Client::new();
-    let (mut translated, mut detected) = deepl_translate(&client, &text, &target, &key).await?;
+    let state = app.state::<AppState>();
+    let client = &state.http;
+    let (mut translated, mut detected) = deepl_translate(client, &text, &target, &key).await?;
 
     if auto && detected.starts_with(&target) {
         target = if target == "EN" { "PT" } else { "EN" }.to_string();
@@ -123,7 +124,7 @@ pub(crate) async fn translate_text(
                 cached: true,
             });
         }
-        let retry = deepl_translate(&client, &text, &target, &key).await?;
+        let retry = deepl_translate(client, &text, &target, &key).await?;
         translated = retry.0;
         detected = retry.1;
     }
@@ -148,13 +149,13 @@ pub async fn translate(
     translate_text(&app, text, target).await
 }
 
-async fn fetch_usage(key: &str) -> Result<Usage, String> {
+async fn fetch_usage(client: &reqwest::Client, key: &str) -> Result<Usage, String> {
     let key = key.trim();
     if key.is_empty() {
         return Err("no_key: Add your DeepL API key in Settings.".to_string());
     }
 
-    let response = reqwest::Client::new()
+    let response = client
         .get(deepl_endpoint(key, "usage"))
         .timeout(Duration::from_secs(8))
         .header("Authorization", format!("DeepL-Auth-Key {key}"))
@@ -177,12 +178,39 @@ async fn fetch_usage(key: &str) -> Result<Usage, String> {
 
 #[tauri::command]
 pub async fn get_usage(app: AppHandle) -> Result<Usage, String> {
-    fetch_usage(&load_settings(&app).deepl_key).await
+    let state = app.state::<AppState>();
+    fetch_usage(&state.http, &load_settings(&app).deepl_key).await
 }
 
 #[tauri::command]
-pub async fn verify_deepl_key(key: String) -> Result<Usage, String> {
-    fetch_usage(&key).await
+pub async fn verify_deepl_key(app: AppHandle, key: String) -> Result<Usage, String> {
+    fetch_usage(&app.state::<AppState>().http, &key).await
+}
+
+fn should_warm_up(last: Option<Instant>, now: Instant) -> bool {
+    last.is_none_or(|at| now.saturating_duration_since(at) > Duration::from_secs(60))
+}
+
+pub(crate) fn warm_up(app: &AppHandle) {
+    let key = load_settings(app).deepl_key;
+    if key.trim().is_empty() {
+        return;
+    }
+
+    let state = app.state::<AppState>();
+    let Ok(mut last) = state.last_warmup.lock() else {
+        return;
+    };
+    let now = Instant::now();
+    if !should_warm_up(*last, now) {
+        return;
+    }
+    *last = Some(now);
+
+    let client = state.http.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = fetch_usage(&client, &key).await;
+    });
 }
 
 #[tauri::command]
@@ -196,6 +224,15 @@ pub fn open_deepl_signup(app: AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn warmup_is_throttled_for_sixty_seconds() {
+        let now = Instant::now();
+        assert!(should_warm_up(None, now));
+        assert!(!should_warm_up(Some(now), now + Duration::from_secs(10)));
+        assert!(!should_warm_up(Some(now), now + Duration::from_secs(60)));
+        assert!(should_warm_up(Some(now), now + Duration::from_secs(61)));
+    }
 
     mod deepl_endpoint {
         use super::*;

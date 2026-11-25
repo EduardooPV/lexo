@@ -96,6 +96,7 @@
     </div>
 
     <div class="history-list" id="historyList"></div>
+    <p class="field-hint" id="historyDisabledHint" hidden>History is turned off in Settings.</p>
 
     <div class="panel-actions">
       <button class="btn btn--danger" id="btnClearHistory" title="Pinned entries are kept">
@@ -135,6 +136,11 @@
     <label class="field field-inline">
       <input type="checkbox" id="autoTranslateClipboard">
       <span class="field-label">Auto-translate the clipboard when opening</span>
+    </label>
+
+    <label class="field field-inline">
+      <input type="checkbox" id="keepHistory" checked>
+      <span class="field-label">Save translation history</span>
     </label>
 
     <button class="btn btn--danger btn--block" id="btnResetAll" type="button" title="Your DeepL key is kept">
