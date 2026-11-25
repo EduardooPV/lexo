@@ -63,9 +63,9 @@ impl Cache {
     }
 }
 
-fn cache_key(text: &str, target: &str) -> String {
+fn cache_key(text: &str, target: &str, formality: &str) -> String {
     let normalized = text.replace("\r\n", "\n");
-    let mut key = format!("v2\u{1}{target}\u{1}");
+    let mut key = format!("v3\u{1}{target}\u{1}{formality}\u{1}");
     let mut in_space = false;
     for ch in normalized.trim().chars() {
         let space = matches!(ch, ' ' | '\t');
@@ -77,10 +77,15 @@ fn cache_key(text: &str, target: &str) -> String {
     key
 }
 
-pub(crate) fn cache_lookup(app: &AppHandle, text: &str, target: &str) -> Option<CacheEntry> {
+pub(crate) fn cache_lookup(
+    app: &AppHandle,
+    text: &str,
+    target: &str,
+    formality: &str,
+) -> Option<CacheEntry> {
     let state = app.state::<AppState>();
     let mut cache = state.cache.lock().ok()?;
-    let hit = cache.lookup(&cache_key(text, target))?;
+    let hit = cache.lookup(&cache_key(text, target, formality))?;
     persist::schedule(app, Kind::Cache);
     Some(hit)
 }
@@ -89,6 +94,7 @@ pub(crate) fn cache_store(
     app: &AppHandle,
     text: &str,
     target: &str,
+    formality: &str,
     translated: &str,
     detected: &str,
 ) {
@@ -97,7 +103,7 @@ pub(crate) fn cache_store(
         return;
     };
     cache.insert(CacheEntry {
-        key: cache_key(text, target),
+        key: cache_key(text, target, formality),
         text: translated.to_string(),
         detected: detected.to_string(),
     });
@@ -118,11 +124,35 @@ mod tests {
 
     #[test]
     fn normalises_horizontal_whitespace_without_joining_paragraphs() {
-        assert_eq!(cache_key("  a \t b\r\n", "EN"), cache_key("a b", "EN"));
-        assert_eq!(cache_key("a\r\n\r\nb", "EN"), cache_key("a\n\nb", "EN"));
-        assert_ne!(cache_key("a\n\nb", "EN"), cache_key("a b", "EN"));
-        assert_ne!(cache_key("hello", "EN"), cache_key("hello", "PT"));
-        assert_ne!(cache_key("hello", "EN"), "EN\u{1}hello");
+        assert_eq!(
+            cache_key("  a \t b\r\n", "EN-US", "default"),
+            cache_key("a b", "EN-US", "default")
+        );
+        assert_eq!(
+            cache_key("a\r\n\r\nb", "EN-US", "default"),
+            cache_key("a\n\nb", "EN-US", "default")
+        );
+        assert_ne!(
+            cache_key("a\n\nb", "EN-US", "default"),
+            cache_key("a b", "EN-US", "default")
+        );
+        assert_ne!(
+            cache_key("hello", "EN-US", "default"),
+            cache_key("hello", "PT-BR", "default")
+        );
+        assert_ne!(cache_key("hello", "EN-US", "default"), "EN\u{1}hello");
+    }
+
+    #[test]
+    fn each_formality_has_a_distinct_key() {
+        assert_ne!(
+            cache_key("hello", "DE", "more"),
+            cache_key("hello", "DE", "less")
+        );
+        assert_ne!(
+            cache_key("hello", "DE", "more"),
+            cache_key("hello", "DE", "default")
+        );
     }
 
     #[test]

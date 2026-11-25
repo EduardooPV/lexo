@@ -1,6 +1,7 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
+use crate::settings::{load_settings, Settings};
 use crate::windows::show_popup;
 
 pub(crate) fn build_tray_menu(app: &AppHandle, paused: bool) -> tauri::Result<Menu<Wry>> {
@@ -26,6 +27,19 @@ pub(crate) fn build_tray_menu(app: &AppHandle, paused: bool) -> tauri::Result<Me
         app,
         &[&open, &history, &settings, &first, &pause, &second, &quit],
     )
+}
+
+pub(crate) fn tray_tooltip(settings: &Settings) -> String {
+    format!(
+        "Lexo — {} ⇄ {}",
+        settings.primary_lang, settings.secondary_lang
+    )
+}
+
+pub(crate) fn refresh_tray_tooltip(app: &AppHandle) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let _ = tray.set_tooltip(Some(tray_tooltip(&load_settings(app))));
+    }
 }
 
 pub(crate) fn refresh_tray(app: &AppHandle, paused: bool) {

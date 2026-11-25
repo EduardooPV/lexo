@@ -2,7 +2,15 @@ import * as api from '../shared/api.js';
 import { hydrate, setLabel } from '../shared/icons.js';
 import { el } from './dom.js';
 import { state } from './state.js';
-import { fitWindow } from './views.js';
+import { fail, fitWindow, toast } from './views.js';
+
+let exporting = false;
+
+function updateExportButtons() {
+  const disabled = exporting || state.historyEntries.length === 0;
+  el('btnExportJson').disabled = disabled;
+  el('btnExportCsv').disabled = disabled;
+}
 
 function historyButton(icon, title, action, active) {
   const button = document.createElement('button');
@@ -25,6 +33,7 @@ export function renderHistory() {
 
   list.replaceChildren();
   el('historyDisabledHint').hidden = state.settings.keepHistory !== false;
+  updateExportButtons();
 
   if (!matches.length) {
     const empty = document.createElement('div');
@@ -82,4 +91,20 @@ export async function loadHistory() {
     state.historyEntries = [];
   }
   renderHistory();
+}
+
+export async function exportHistory(format) {
+  if (exporting || !state.historyEntries.length) return;
+  const status = el('historyStatus');
+  exporting = true;
+  updateExportButtons();
+  try {
+    const path = await api.exportHistory(format);
+    if (path) toast(status, 'Exported!');
+  } catch (error) {
+    fail(status, api.describeError(error));
+  } finally {
+    exporting = false;
+    updateExportButtons();
+  }
 }

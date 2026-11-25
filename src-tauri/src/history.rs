@@ -129,6 +129,11 @@ pub fn toggle_history_pin(app: AppHandle, id: String) -> Vec<HistoryEntry> {
     })
 }
 
+#[tauri::command]
+pub async fn export_history(app: AppHandle, format: String) -> Result<Option<String>, String> {
+    crate::history_export::export_history(app, format).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

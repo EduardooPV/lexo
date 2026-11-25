@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::{AppHandle, Manager};
 
+use crate::languages::{base, normalize_target};
 use crate::paths::{read_json, write_json};
 use crate::persist::{self, Kind};
 use crate::secrets::{store_verified, KeyringStore, SecretStore};
@@ -13,7 +14,8 @@ const DEFAULT_REPLACE_HOTKEY: &str = "Alt+Shift+T";
 const DEFAULT_OCR_HOTKEY: &str = "Alt+S";
 const DEFAULT_SWAP_HOTKEY: &str = "Alt+E";
 
-const SETTINGS_VERSION: u32 = 2;
+const SETTINGS_VERSION: u32 = 3;
+const KEY_STORAGE_VERSION: u32 = 2;
 const KEYRING: &str = "keyring";
 const FILE: &str = "file";
 const FALLBACK_WARNING: &str =
@@ -77,6 +79,14 @@ pub(crate) struct Settings {
     pub(crate) quota_warned: bool,
     #[serde(default = "default_true")]
     pub(crate) keep_history: bool,
+    #[serde(default = "default_primary_lang")]
+    pub(crate) primary_lang: String,
+    #[serde(default = "default_secondary_lang")]
+    pub(crate) secondary_lang: String,
+    #[serde(default = "default_formality")]
+    pub(crate) formality: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    legacy_key_migration_pending: bool,
     #[serde(default)]
     pub(crate) appearance: Appearance,
     #[serde(default)]
@@ -101,12 +111,32 @@ impl Default for Settings {
             key_storage: default_key_storage(),
             quota_warned: false,
             keep_history: true,
+            primary_lang: default_primary_lang(),
+            secondary_lang: default_secondary_lang(),
+            formality: default_formality(),
+            legacy_key_migration_pending: false,
             appearance: Appearance::default(),
             popup_x: None,
             popup_y: None,
             settings_version: SETTINGS_VERSION,
         }
     }
+}
+
+fn default_primary_lang() -> String {
+    "PT-BR".into()
+}
+
+fn default_secondary_lang() -> String {
+    "EN-US".into()
+}
+
+fn default_formality() -> String {
+    "default".into()
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 fn default_hotkey() -> String {
@@ -199,14 +229,15 @@ fn commit_settings(
 
 pub(crate) fn persist_settings(
     app: &AppHandle,
-    update: impl FnOnce(&mut Settings),
+    update: impl FnOnce(&mut Settings) -> bool,
 ) -> Result<Settings, String> {
     let state = app.state::<AppState>();
     let _io = state.settings_io.lock().unwrap_or_else(|e| e.into_inner());
     let mut current = state.settings.write().unwrap_or_else(|e| e.into_inner());
     let mut updated = current.clone();
-    update(&mut updated);
-    commit_settings(&state, &mut current, updated)?;
+    if update(&mut updated) {
+        commit_settings(&state, &mut current, updated)?;
+    }
     Ok(current.clone())
 }
 
@@ -238,22 +269,53 @@ pub(crate) fn load_from_disk(path: &Path, store: &dyn SecretStore) -> Settings {
 }
 
 fn migrate_settings(settings: &mut Settings, store: &dyn SecretStore) -> bool {
-    let version = settings.settings_version;
-    if version < 1 {
+    let previous_version = settings.settings_version;
+    let pending_key = settings.legacy_key_migration_pending;
+    if previous_version < 1 {
         settings.auto_translate_clipboard = false;
         settings.settings_version = 1;
     }
-    if settings.settings_version == 1 {
-        if settings.deepl_key.is_empty() {
-            settings.settings_version = 2;
-        } else if let Err(error) = store_verified(store, &settings.deepl_key) {
-            eprintln!("{error}");
-        } else {
+    if settings.settings_version == 1 || pending_key {
+        if !settings.deepl_key.is_empty() {
+            if let Err(error) = store_verified(store, &settings.deepl_key) {
+                eprintln!("{error}");
+                return settings.settings_version != previous_version;
+            }
             settings.key_storage = KEYRING.into();
-            settings.settings_version = 2;
         }
+        settings.settings_version = settings.settings_version.max(KEY_STORAGE_VERSION);
+        settings.legacy_key_migration_pending = false;
     }
-    settings.settings_version != version
+    settings.settings_version != previous_version || pending_key
+}
+
+pub(crate) fn migrate_language_preferences(
+    path: &Path,
+    settings: &mut Settings,
+) -> Result<(), String> {
+    let mut updated = settings.clone();
+    updated.legacy_key_migration_pending =
+        settings.settings_version < KEY_STORAGE_VERSION && !settings.deepl_key.is_empty();
+    updated.settings_version = SETTINGS_VERSION;
+    write_settings(path, &updated)?;
+    *settings = updated;
+    Ok(())
+}
+
+pub(crate) fn needs_language_migration(settings: &Settings) -> bool {
+    settings.settings_version < SETTINGS_VERSION
+}
+
+fn validate_languages(settings: &mut Settings) -> Result<(), String> {
+    settings.primary_lang = normalize_target(&settings.primary_lang)?;
+    settings.secondary_lang = normalize_target(&settings.secondary_lang)?;
+    if base(&settings.primary_lang) == base(&settings.secondary_lang) {
+        return Err("invalid_languages: Choose two languages with different base codes.".into());
+    }
+    if !matches!(settings.formality.as_str(), "default" | "more" | "less") {
+        return Err("invalid_languages: Choose a supported formality option.".into());
+    }
+    Ok(())
 }
 
 fn merge_settings(current: &Settings, settings: Settings) -> Settings {
@@ -263,6 +325,7 @@ fn merge_settings(current: &Settings, settings: Settings) -> Settings {
         shortcuts_paused: current.shortcuts_paused,
         key_storage: current.key_storage.clone(),
         quota_warned: current.quota_warned,
+        legacy_key_migration_pending: current.legacy_key_migration_pending,
         settings_version: current.settings_version,
         ..settings
     }
@@ -275,10 +338,17 @@ pub fn get_settings(app: AppHandle) -> Settings {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Option<String>, String> {
+    let result = save(&app, settings)?;
+    crate::tray::refresh_tray_tooltip(&app);
+    Ok(result)
+}
+
+fn save(app: &AppHandle, settings: Settings) -> Result<Option<String>, String> {
     let state = app.state::<AppState>();
     let _io = state.settings_io.lock().unwrap_or_else(|e| e.into_inner());
     let mut current = state.settings.write().unwrap_or_else(|e| e.into_inner());
     let mut updated = merge_settings(&current, settings);
+    validate_languages(&mut updated)?;
     updated.deepl_key = updated.deepl_key.trim().into();
     if updated.deepl_key == current.deepl_key {
         commit_settings(&state, &mut current, updated)?;
@@ -286,9 +356,10 @@ pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Option<String
     }
 
     let store = KeyringStore;
+    updated.legacy_key_migration_pending = false;
     if updated.deepl_key.is_empty() {
         updated.key_storage = FILE.into();
-        updated.settings_version = updated.settings_version.max(SETTINGS_VERSION);
+        updated.settings_version = updated.settings_version.max(KEY_STORAGE_VERSION);
         // Commit first. A failed disk write must not remove the only usable key.
         commit_settings(&state, &mut current, updated)?;
         return Ok(store
@@ -308,7 +379,7 @@ pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Option<String
             Some(FALLBACK_WARNING.into())
         }
     };
-    updated.settings_version = updated.settings_version.max(SETTINGS_VERSION);
+    updated.settings_version = updated.settings_version.max(KEY_STORAGE_VERSION);
 
     if let Err(error) = commit_settings(&state, &mut current, updated) {
         // A replacement can change the keyring before the atomic file write
@@ -482,6 +553,76 @@ mod migration_tests {
         assert!(persisted.deepl_key.is_empty());
         assert_eq!(load_from_disk(&path, &store).deepl_key, "legacy-key");
 
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn validates_and_normalizes_language_preferences() {
+        let mut settings = Settings {
+            primary_lang: "Pt".into(),
+            secondary_lang: "de".into(),
+            formality: "more".into(),
+            ..Settings::default()
+        };
+        assert!(validate_languages(&mut settings).is_ok());
+        assert_eq!(settings.primary_lang, "PT-BR");
+        assert_eq!(settings.secondary_lang, "DE");
+        settings.secondary_lang = "PT-PT".into();
+        assert!(validate_languages(&mut settings).is_err());
+        settings.secondary_lang = "EN-US".into();
+        settings.formality = "preferred".into();
+        assert!(validate_languages(&mut settings).is_err());
+    }
+
+    #[test]
+    fn language_migration_preserves_the_option_to_retry_a_legacy_key() {
+        let dir = std::env::temp_dir().join(format!("lexo-schema-{}", crate::history::unique_id()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("settings.json");
+        let mut settings = legacy_settings("legacy-key");
+        let unavailable = MemoryStore {
+            fail_set: true,
+            ..MemoryStore::default()
+        };
+
+        assert!(!migrate_settings(&mut settings, &unavailable));
+        assert!(needs_language_migration(&settings));
+        migrate_language_preferences(&path, &mut settings).unwrap();
+        assert!(!needs_language_migration(&settings));
+        assert_eq!(settings.primary_lang, "PT-BR");
+        assert_eq!(settings.secondary_lang, "EN-US");
+        assert_eq!(settings.formality, "default");
+        assert_eq!(load_from_disk(&path, &unavailable).deepl_key, "legacy-key");
+
+        let available = MemoryStore::default();
+        let migrated = load_from_disk(&path, &available);
+        assert_eq!(migrated.key_storage, KEYRING);
+        assert_eq!(migrated.settings_version, SETTINGS_VERSION);
+        assert_eq!(migrated.deepl_key, "legacy-key");
+        assert!(!migrated.legacy_key_migration_pending);
+
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn schema_upgrade_preserves_preferences_saved_during_a_migration_retry() {
+        let dir = std::env::temp_dir().join(format!("lexo-prefs-{}", crate::history::unique_id()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("settings.json");
+        let mut settings = Settings {
+            primary_lang: "DE".into(),
+            secondary_lang: "ES".into(),
+            formality: "more".into(),
+            settings_version: KEY_STORAGE_VERSION,
+            ..Settings::default()
+        };
+        migrate_language_preferences(&path, &mut settings).unwrap();
+        assert_eq!(settings.primary_lang, "DE");
+        assert_eq!(settings.secondary_lang, "ES");
+        assert_eq!(settings.formality, "more");
+        assert_eq!(settings.settings_version, SETTINGS_VERSION);
         std::fs::remove_file(path).unwrap();
         std::fs::remove_dir(dir).unwrap();
     }

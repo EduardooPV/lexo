@@ -9,10 +9,11 @@ export const DEFAULT_SETTINGS = {
   autoTranslateClipboard: false,
   keepHistory: true,
   deeplKey: '',
+  primaryLang: 'PT-BR',
+  secondaryLang: 'EN-US',
+  formality: 'default',
   appearance: { ...DEFAULT_APPEARANCE }
 };
-
-export const LANGUAGE_NAMES = { PT: 'Portuguese', EN: 'English' };
 
 export const state = {
   settings: { ...DEFAULT_SETTINGS },

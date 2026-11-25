@@ -1,5 +1,6 @@
 import * as api from '../shared/api.js';
 import { el, status } from './dom.js';
+import { renderUsageHint } from './settings.js';
 import { state } from './state.js';
 import { fail, fitWindow, showView, toast } from './views.js';
 
@@ -19,10 +20,11 @@ export async function connectDeepl() {
   fitWindow();
 
   try {
-    await api.verifyDeeplKey(key);
+    const usage = await api.verifyDeeplKey(key);
     const warning = await api.saveSettings({ ...state.settings, deeplKey: key });
     state.settings = { ...state.settings, deeplKey: key };
     el('deeplKey').value = key;
+    renderUsageHint(usage);
     showView('main');
     toast(status, warning || 'Connected to DeepL.', warning ? 6000 : undefined);
   } catch (error) {
