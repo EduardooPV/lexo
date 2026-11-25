@@ -46,3 +46,22 @@ it('shows the keychain warning returned by the backend when saving settings', as
   expect(el('mainView').hidden).toBe(false);
   expect(el('status').textContent).toBe(warning);
 });
+
+it('resets the zoom and history preference in a single settings save', async () => {
+  const mock = await mountPopup({
+    get_settings: () => ({
+      ...DEFAULT_SETTINGS,
+      keepHistory: false,
+      appearance: { ...DEFAULT_SETTINGS.appearance, zoom: 1.3 }
+    })
+  });
+
+  el('btnSettings').click();
+  el('btnResetAll').click();
+  await flush();
+
+  const saves = mock.callsFor('save_settings');
+  expect(saves).toHaveLength(1);
+  expect(saves[0].args.settings.keepHistory).toBe(true);
+  expect(saves[0].args.settings.appearance.zoom).toBe(1);
+});

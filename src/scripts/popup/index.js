@@ -161,7 +161,7 @@ el('btnSaveSettings').addEventListener('click', () => saveAll(el('settingsStatus
 el('btnSaveShortcuts').addEventListener('click', () => saveAll(el('shortcutsStatus')));
 el('btnSaveAppearance').addEventListener('click', () => saveAll(el('appearanceStatus')));
 
-el('btnResetAll').addEventListener('click', () => {
+el('btnResetAll').addEventListener('click', async () => {
   setRecorder('hotkey', DEFAULT_SETTINGS.hotkey);
   setRecorder('swapHotkey', DEFAULT_SETTINGS.swapHotkey);
   setRecorder('selectionHotkey', DEFAULT_SETTINGS.selectionHotkey);
@@ -173,7 +173,7 @@ el('btnResetAll').addEventListener('click', () => {
   applyLanguageSettings(DEFAULT_SETTINGS);
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);
-  setZoom(DEFAULT_APPEARANCE.zoom);
+  await setZoom(DEFAULT_APPEARANCE.zoom, { persist: false });
   saveAll(el('settingsStatus'));
 });
 
