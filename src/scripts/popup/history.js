@@ -24,6 +24,7 @@ export function renderHistory() {
   );
 
   list.replaceChildren();
+  el('historyDisabledHint').hidden = state.settings.keepHistory !== false;
 
   if (!matches.length) {
     const empty = document.createElement('div');

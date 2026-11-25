@@ -157,6 +157,7 @@ el('btnResetAll').addEventListener('click', () => {
   setRecorder('replaceHotkey', DEFAULT_SETTINGS.replaceHotkey);
   setRecorder('ocrHotkey', DEFAULT_SETTINGS.ocrHotkey);
   el('autoTranslateClipboard').checked = false;
+  el('keepHistory').checked = DEFAULT_SETTINGS.keepHistory;
   el('autostart').checked = true;
   appearanceToControls(DEFAULT_APPEARANCE);
   applyAppearance(DEFAULT_APPEARANCE);

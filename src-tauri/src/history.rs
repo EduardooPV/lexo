@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
-use crate::paths::{history_path, write_json};
+use crate::persist::{self, Kind};
+use crate::settings::load_settings;
 use crate::state::AppState;
 
 const HISTORY_LIMIT: usize = 200;
@@ -46,16 +47,19 @@ where
 
     edit(&mut history);
 
-    let snapshot = history.clone();
-    drop(history);
-    write_json(&history_path(app), &snapshot);
-    snapshot
+    persist::schedule(app, Kind::History);
+    history.clone()
 }
 
 pub(crate) fn history_push(app: &AppHandle, source: &str, translated: &str, from: &str, to: &str) {
-    with_history(app, |history| {
-        push_entry(history, source, translated, from, to);
-    });
+    if !load_settings(app).keep_history {
+        return;
+    }
+    let state = app.state::<AppState>();
+    if let Ok(mut history) = state.history.lock() {
+        push_entry(&mut history, source, translated, from, to);
+        persist::schedule(app, Kind::History);
+    };
 }
 
 fn push_entry(

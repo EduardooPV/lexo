@@ -45,6 +45,7 @@ export async function loadSettings() {
 
   el('deeplKey').value = state.settings.deeplKey || '';
   el('autoTranslateClipboard').checked = state.settings.autoTranslateClipboard === true;
+  el('keepHistory').checked = state.settings.keepHistory !== false;
   try { el('autostart').checked = await api.getAutostart(); } catch (_) {}
   try { el('appVersion').textContent = `Lexo ${await api.appVersion()}`; } catch (_) {}
 
@@ -74,12 +75,13 @@ export async function saveAll(statusNode) {
     replaceHotkey: el('replaceHotkey').dataset.value,
     ocrHotkey: el('ocrHotkey').dataset.value,
     autoTranslateClipboard: el('autoTranslateClipboard').checked,
+    keepHistory: el('keepHistory').checked,
     deeplKey: el('deeplKey').value.trim(),
     appearance: appearanceFromControls()
   };
 
   try {
-    await api.saveSettings(updated);
+    const warning = await api.saveSettings(updated);
     try { await api.setAutostart(el('autostart').checked); } catch (_) {}
 
     state.settings = { ...state.settings, ...updated };
@@ -89,12 +91,14 @@ export async function saveAll(statusNode) {
     try {
       await api.updateShortcuts();
     } catch (error) {
-      fail(statusNode, 'Saved, but a shortcut could not be registered: ' + api.describeError(error));
+      const shortcutError = 'Saved, but a shortcut could not be registered: ' + api.describeError(error);
+      fail(statusNode, warning ? shortcutError + ' ' + warning : shortcutError);
       return;
     }
 
     showView('main');
-    toast(status, 'Saved!');
+    const destination = needsWelcome() ? el('welcomeStatus') : status;
+    toast(destination, warning || 'Saved!', warning ? 6000 : undefined);
   } catch (error) {
     fail(statusNode, 'Error saving: ' + api.describeError(error));
   }

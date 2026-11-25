@@ -20,11 +20,11 @@ export async function connectDeepl() {
 
   try {
     await api.verifyDeeplKey(key);
-    await api.saveSettings({ ...state.settings, deeplKey: key });
+    const warning = await api.saveSettings({ ...state.settings, deeplKey: key });
     state.settings = { ...state.settings, deeplKey: key };
     el('deeplKey').value = key;
     showView('main');
-    toast(status, 'Connected to DeepL.');
+    toast(status, warning || 'Connected to DeepL.', warning ? 6000 : undefined);
   } catch (error) {
     fail(statusNode, api.describeError(error));
     fitWindow();
