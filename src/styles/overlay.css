@@ -53,3 +53,9 @@ html, body{
   letter-spacing: .3px;
   pointer-events: none;
 }
+
+@media (forced-colors: active){
+  #backdrop{ forced-color-adjust: none; }
+  #selection{ border-color: Highlight; }
+  #size, #hint{ background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+}

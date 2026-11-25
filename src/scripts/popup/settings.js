@@ -22,8 +22,13 @@ export async function refreshUsage() {
   try {
     const usage = await api.getUsage();
     const percent = usage.characterLimit ? (usage.characterCount / usage.characterLimit) * 100 : 0;
-    el('usageFill').style.width = Math.min(percent, 100) + '%';
-    el('usageFill').classList.toggle('is-high', percent >= 85);
+    const fill = el('usageFill');
+    const progress = fill.parentElement;
+    fill.style.width = Math.min(percent, 100) + '%';
+    fill.classList.toggle('is-high', percent >= 85);
+    progress.setAttribute('aria-valuemin', '0');
+    progress.setAttribute('aria-valuemax', String(usage.characterLimit || 100));
+    progress.setAttribute('aria-valuenow', String(Math.min(usage.characterCount, usage.characterLimit)));
     el('usageText').textContent =
       `${format(usage.characterCount)} / ${format(usage.characterLimit)} characters this month`;
     box.hidden = false;

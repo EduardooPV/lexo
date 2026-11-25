@@ -1,5 +1,6 @@
 import * as api from './shared/api.js';
 import { hydrate, setIcon } from './shared/icons.js';
+import { setErrorStatus } from './shared/status.js';
 import { applyAppearance } from './shared/theme.js';
 import { isSpeechAvailable, loadVoices, speak } from './shared/speech.js';
 
@@ -24,8 +25,11 @@ function fit() {
 
 function setStatus(message) {
   const node = el('miniStatus');
-  node.textContent = message || '';
-  node.classList.toggle('error', Boolean(message));
+  if (message) setErrorStatus(node, message);
+  else {
+    node.textContent = '';
+    node.classList.remove('error');
+  }
 }
 
 // An OCR grab is read straight off the screen, so the source text is still
@@ -137,6 +141,7 @@ api.listen('mini-translate', async (event) => {
   shownAt = Date.now();
   const { text = '', origin = 'selection', error = null } = event.payload || {};
   setCompact(origin === 'ocr');
+  el('bubble').focus({ preventScroll: true });
 
   try {
     const settings = await api.getSettings();

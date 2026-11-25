@@ -110,7 +110,7 @@ describe('connecting a DeepL account', () => {
 
     expect(mock.callsFor('save_settings')).toHaveLength(0);
     expect(el('welcomeView').hidden).toBe(false);
-    expect(el('welcomeStatus').textContent).toBe('DeepL rejected the key. Check it in Settings.');
+    expect(el('welcomeStatus').textContent).toBe('Error: DeepL rejected the key. Check it in Settings.');
     expect(el('welcomeStatus').classList.contains('error')).toBe(true);
   });
 

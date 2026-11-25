@@ -1,4 +1,5 @@
 import * as api from '../shared/api.js';
+import { setLabel } from '../shared/icons.js';
 import { dirBadge, dirLabel, el, out, outputCard, src, status } from './dom.js';
 import { LANGUAGE_NAMES, state } from './state.js';
 import { fail, fitWindow } from './views.js';
@@ -6,14 +7,16 @@ import { fail, fitWindow } from './views.js';
 export function updateBadge() {
   if (state.forcedTarget) {
     dirLabel.textContent = state.forcedTarget === 'EN' ? 'PT → EN' : 'EN → PT';
-    dirBadge.title = `Pinned direction — click or press ${state.settings.swapHotkey} to change`;
   } else if (state.lastResult) {
     dirLabel.textContent = `${state.lastResult.detectedSource || '?'} → ${state.lastResult.target}`;
-    dirBadge.title = `Detected automatically — click or press ${state.settings.swapHotkey} to pin a direction`;
   } else {
     dirLabel.textContent = 'Auto';
-    dirBadge.title = `Detected automatically — click or press ${state.settings.swapHotkey} to pin a direction`;
   }
+  const hotkey = state.settings.swapHotkey;
+  const hint = state.forcedTarget
+    ? `pinned direction — click or press ${hotkey} to change`
+    : `detected automatically — click or press ${hotkey} to pin a direction`;
+  setLabel(dirBadge, `${dirLabel.textContent}: ${hint}`);
   dirBadge.classList.toggle('is-forced', Boolean(state.forcedTarget));
 }
 
@@ -39,8 +42,8 @@ export async function translate() {
   try {
     const result = await api.translate(text, state.forcedTarget);
     state.lastResult = { ...result, sourceText: text };
-    out.textContent = result.text;
     outputCard.hidden = false;
+    out.textContent = result.text;
     el('outDir').textContent = LANGUAGE_NAMES[result.target] || result.target;
     status.textContent = '';
     updateBadge();
